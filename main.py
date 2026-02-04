@@ -490,6 +490,10 @@ def add_direct_sale():
         manual_client_name = request.form.get('manual_client_name', '').strip()
         if manual_client_name:
             client_name = manual_client_name
+        # Unbilled Cash: Disable manual_bill_no requirement
+        # If no manual_bill_no is provided for Cash, it remains UNBILLED
+        # Unbilled Cash: Disable manual_bill_no requirement
+        # If no manual_bill_no is provided for Cash, it remains UNBILLED
 
     create_invoice = bool(request.form.get('create_invoice'))
     
@@ -545,18 +549,21 @@ def add_direct_sale():
     # Determine bill number for pending bill
     pending_bill_no = manual_bill_no if manual_bill_no else (invoice_no if create_invoice else None)
 
-    # Auto-add to PendingBill if it has a manual bill no
-    if has_bill and pending_amount > 0 and pending_bill_no:
-        existing_pb = PendingBill.query.filter_by(bill_no=pending_bill_no, client_code=(client.code if client else None)).first()
+    # Auto-add to PendingBill if it has a manual bill no or is a tracked credit sale
+    if pending_amount > 0 and (manual_bill_no or (create_invoice and invoice_no) or (category and category.lower() != 'cash')):
+        # Link to client if possible
+        client_code = client.code if client else None
+        
+        existing_pb = PendingBill.query.filter_by(bill_no=pending_bill_no, client_code=client_code).first() if pending_bill_no else None
         if not existing_pb:
             db.session.add(PendingBill(
-                client_code=(client.code if client else None),
+                client_code=client_code,
                 client_name=(client.name if client else client_name),
                 bill_no=pending_bill_no,
                 amount=pending_amount,
                 reason=f"Direct Sale: {materials_list[0] if materials_list else ''}",
                 is_cash=(category.lower() == 'cash') if category else False,
-                is_manual=True,
+                is_manual=bool(manual_bill_no),
                 created_at=datetime.now().strftime('%Y-%m-%d %H:%M'),
                 created_by=current_user.username
             ))
@@ -586,7 +593,7 @@ def add_direct_sale():
     # Create dispatching Entry rows
     now = datetime.now()
     for item in items_created:
-        ledger_bill_ref = manual_bill_no if manual_bill_no else (inv.invoice_no if (create_invoice and inv) else "CASH-SALE")
+        ledger_bill_ref = manual_bill_no if manual_bill_no else (inv.invoice_no if (create_invoice and inv) else "UNBILLED-" + str(sale.id))
         
         entry = Entry(date=now.strftime('%Y-%m-%d'),
                       time=now.strftime('%H:%M:%S'),
@@ -600,6 +607,21 @@ def add_direct_sale():
                       created_by=current_user.username,
                       client_category=category)
         db.session.add(entry)
+        
+        # Update Material stock (reduce In Hand)
+        mat_obj = Material.query.filter_by(name=item.product_name).first()
+        if mat_obj:
+            mat_obj.total = (mat_obj.total or 0) - item.qty
+        
+        # Update Material stock (reduce In Hand)
+        mat_obj = Material.query.filter_by(name=item.product_name).first()
+        if mat_obj:
+            mat_obj.total = (mat_obj.total or 0) - item.qty
+        
+        # Update Material stock (reduce In Hand)
+        mat_obj = Material.query.filter_by(name=item.product_name).first()
+        if mat_obj:
+            mat_obj.total = (mat_obj.total or 0) - item.qty
 
     db.session.commit()
     msg = 'Direct sale added successfully'
@@ -626,7 +648,7 @@ def add_direct_sale():
     # Create dispatching Entry rows
     now = datetime.now()
     for item in items_created:
-        ledger_bill_ref = manual_bill_no if manual_bill_no else (inv.invoice_no if (create_invoice and inv) else "UNBILLED-" + auto_bill_no.replace('#', ''))
+        ledger_bill_ref = manual_bill_no if manual_bill_no else (inv.invoice_no if (create_invoice and inv) else "UNBILLED-" + str(sale.id))
         
         entry = Entry(date=now.strftime('%Y-%m-%d'),
                       time=now.strftime('%H:%M:%S'),
@@ -636,11 +658,15 @@ def add_direct_sale():
                       client_code=(client.code if client else None),
                       qty=item.qty,
                       bill_no=ledger_bill_ref,
-                      auto_bill_no=auto_bill_no,
                       nimbus_no='Direct Sale',
                       created_by=current_user.username,
                       client_category=category)
         db.session.add(entry)
+        
+        # Update Material stock (reduce In Hand)
+        mat_obj = Material.query.filter_by(name=item.product_name).first()
+        if mat_obj:
+            mat_obj.total = (mat_obj.total or 0) - item.qty
 
     db.session.commit()
     msg = 'Direct sale added successfully'

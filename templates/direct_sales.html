@@ -109,7 +109,7 @@
                             </div>
                             <div id="addSaleClientNameDisplay" class="text-info small mt-1 fw-bold"></div>
                         </div>
-                        <div id="bookingStatusContainer" class="p-3 bg-dark rounded border border-secondary" style="min-height: 200px;">
+                        <div id="bookingStatusContainer" class="p-3 bg-dark rounded border border-secondary" style="min-height: 200px; overflow-y: auto;">
                             <p class="text-white-50 text-center mt-5">Select a client to see booked items</p>
                         </div>
                     </div>
@@ -353,6 +353,58 @@ function attachSaleListeners(row) {
     [rateInput, qtyInput].forEach(el => {
         el.addEventListener('input', () => updateSalePrice(row.closest('form')));
     });
+}
+
+function updateBookingStatus(clientCode) {
+    const container = document.getElementById('bookingStatusContainer');
+    if (!clientCode) {
+        container.innerHTML = '<p class="text-white-50 text-center mt-5">Select a client to see booked items</p>';
+        return;
+    }
+
+    fetch(`/api/client_booking_status/${encodeURIComponent(clientCode)}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                container.innerHTML = `<p class="text-danger text-center mt-5">${data.error}</p>`;
+                return;
+            }
+
+            if (data.bookings.length === 0) {
+                container.innerHTML = '<p class="text-white-50 text-center mt-5">No active bookings found for this client.</p>';
+                return;
+            }
+
+            let html = '<h6 class="text-warning fw-bold mb-3 small">BOOKED MATERIALS</h6>';
+            html += '<div class="table-responsive"><table class="table table-sm table-dark small">';
+            html += '<thead><tr><th>Material</th><th>Booked</th><th>Rem.</th></tr></thead><tbody>';
+            
+            data.bookings.forEach(b => {
+                html += `<tr>
+                    <td class="text-white">${b.material}</td>
+                    <td class="text-info">${b.booked_qty}</td>
+                    <td class="text-success">${b.remaining_qty}</td>
+                </tr>`;
+            });
+            
+            html += '</tbody></table></div>';
+            container.innerHTML = html;
+
+            // Auto-update category if client has a specific category
+            const catSelect = document.getElementById('saleCategory');
+            if (data.category && catSelect) {
+                for (let i = 0; i < catSelect.options.length; i++) {
+                    if (catSelect.options[i].value === data.category) {
+                        catSelect.selectedIndex = i;
+                        break;
+                    }
+                }
+            }
+        })
+        .catch(err => {
+            console.error('Error fetching booking status:', err);
+            container.innerHTML = '<p class="text-danger text-center mt-5">Error loading data</p>';
+        });
 }
 
 function updateSalePrice(form) {
