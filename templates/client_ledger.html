@@ -1,0 +1,151 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2 class="mb-1 text-warning">Client Ledger: {{ client.name }}</h2>
+        <span class="badge bg-dark border border-secondary text-info">Client Code: {{ client.code or 'N/A' }}</span>
+    </div>
+    <div class="d-flex gap-2">
+        <button class="btn btn-outline-primary d-print-none btn-sm" onclick="window.print()"><i class="bi bi-printer"></i> Print</button>
+        <a href="{{ url_for('ledger_page') }}" class="btn btn-outline-secondary btn-sm d-print-none">Back</a>
+    </div>
+</div>
+
+<!-- Financial Ledger Section -->
+<div class="card border-0 shadow-sm mb-4" style="background: #1e293b; border: 2px solid #475569 !important; border-radius: 15px; overflow: hidden;">
+    <div class="card-header border-bottom border-secondary py-3 d-flex justify-content-between align-items-center" style="background: #0f172a;">
+        <h5 class="mb-0 text-success fw-bold"><i class="bi bi-cash-coin me-2"></i>Financial Transaction Ledger</h5>
+        <span class="badge bg-success text-dark">{{ financial_history|length }} Transactions</span>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-dark table-hover align-middle mb-0">
+            <thead style="background: #0f172a;">
+                <tr>
+                    <th class="fw-bold py-3 ps-4 border-bottom border-secondary text-white-50">Date</th>
+                    <th class="fw-bold py-3 border-bottom border-secondary text-white-50">Description</th>
+                    <th class="fw-bold py-3 border-bottom border-secondary text-white-50">Bill #</th>
+                    <th class="fw-bold py-3 text-end border-bottom border-secondary text-white-50">Debit (Dr)</th>
+                    <th class="fw-bold py-3 text-end border-bottom border-secondary text-white-50">Credit (Cr)</th>
+                    <th class="fw-bold py-3 text-end pe-4 border-bottom border-secondary text-white-50">Balance</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% set ns = namespace(balance=0) %}
+                {% for t in financial_history|reverse %}
+                {% set ns.balance = ns.balance + t.debit - t.credit %}
+                {% endfor %}
+                
+                {% set current_bal = namespace(val=ns.balance) %}
+                {% for t in financial_history %}
+                <tr style="border-bottom: 1px solid #334155;">
+                    <td class="ps-4 py-3 small text-white-50">{{ t.date.strftime('%Y-%m-%d %H:%M') }}</td>
+                    <td>
+                        <a href="{{ url_for('view_bill_detail', type=t.type, id=t.id) }}" class="text-decoration-none text-info fw-bold">
+                            {{ t.description }}
+                        </a>
+                    </td>
+                    <td>
+                        <span class="badge bg-dark border border-secondary text-warning">{{ t.bill_no }}</span>
+                    </td>
+                    <td class="text-end text-danger fw-bold">{{ "{:,.2f}".format(t.debit) if t.debit > 0 else '---' }}</td>
+                    <td class="text-end text-success fw-bold">{{ "{:,.2f}".format(t.credit) if t.credit > 0 else '---' }}</td>
+                    <td class="text-end pe-4 fw-bold text-white">{{ "{:,.2f}".format(current_bal.val) }}</td>
+                </tr>
+                {% set current_bal.val = current_bal.val - t.debit + t.credit %}
+                {% endfor %}
+            </tbody>
+        </table>
+        {% if not financial_history %}
+        <div class="p-5 text-center text-white-50">No financial transactions found.</div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Material Transaction Ledger -->
+    <div class="col-lg-12">
+        <div class="card border-0 shadow-sm h-100" style="background: #1e293b; border: 2px solid #475569 !important; border-radius: 15px; overflow: hidden;">
+            <div class="card-header border-bottom border-secondary py-3 d-flex justify-content-between align-items-center" style="background: #0f172a;">
+                <h5 class="mb-0 text-info fw-bold"><i class="bi bi-box-seam me-2"></i>Material Transaction Ledger (Deliveries)</h5>
+                <span class="badge bg-info text-dark">{{ material_history|length }} Records</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-dark table-hover align-middle mb-0">
+                    <thead style="background: #020617;">
+                        <tr>
+                            <th class="ps-3">Date</th>
+                            <th>Material</th>
+                            <th class="text-end">Qty</th>
+                            <th>Bill #</th>
+                            <th class="pe-3">Nimbus #</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for m in material_history %}
+                        <tr style="border-bottom: 1px solid #334155;">
+                            <td class="ps-3 small">{{ m.date }}</td>
+                            <td class="fw-bold">{{ m.material }}</td>
+                            <td class="text-end text-warning fw-bold">{{ m.qty|int }}</td>
+                            <td class="small text-white-50">{{ m.bill_no or '---' }}</td>
+                            <td class="pe-3 small text-white-50">{{ m.nimbus_no or '---' }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% if not material_history %}
+                <div class="p-5 text-center text-white-50">No material transactions found.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Pending Bills Section -->
+    <div class="col-lg-12">
+        <div class="card border-0 shadow-sm h-100" style="background: #1e293b; border: 2px solid #475569 !important; border-radius: 15px; overflow: hidden;">
+            <div class="card-header border-bottom border-secondary py-3 d-flex justify-content-between align-items-center" style="background: #0f172a;">
+                <h5 class="mb-0 text-warning fw-bold"><i class="bi bi-clock-history me-2"></i>Bills (Pending Section)</h5>
+                <span class="badge bg-warning text-dark">{{ pending_bills|length }} Records</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-dark table-hover align-middle mb-0">
+                    <thead style="background: #020617;">
+                        <tr>
+                            <th class="ps-3">Bill #</th>
+                            <th class="text-end">Amount</th>
+                            <th>Status</th>
+                            <th class="pe-3">Reason</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for b in pending_bills %}
+                        <tr style="border-bottom: 1px solid #334155;">
+                            <td class="ps-3 fw-bold text-warning">{{ b.bill_no }}</td>
+                            <td class="text-end text-danger fw-bold">{{ "{:,.0f}".format(b.amount) }}</td>
+                            <td>
+                                {% if b.is_paid %}
+                                <span class="badge bg-success">Paid</span>
+                                {% else %}
+                                <span class="badge bg-danger">Pending</span>
+                                {% endif %}
+                            </td>
+                            <td class="pe-3 small text-white-50" title="{{ b.reason }}">{{ b.reason[:50] }}{% if b.reason|length > 50 %}...{% endif %}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% if not pending_bills %}
+                <div class="p-5 text-center text-white-50">No pending bills found.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+@media print {
+    .sidebar, .navbar, .d-print-none { display: none !important; }
+    .main-content { margin-left: 0 !important; padding: 0 !important; }
+    .card { border: 1px solid #334155 !important; }
+}
+</style>
+{% endblock %}

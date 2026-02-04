@@ -1,0 +1,429 @@
+{% extends "layout.html" %}
+{% block content %}
+<div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
+    <h2 class="fw-bold text-warning mb-0"><i class="bi bi-cart-check me-2"></i>Direct Sales</h2>
+    <div class="d-flex gap-2 flex-wrap">
+        <button class="btn btn-warning btn-sm text-dark fw-bold" data-bs-toggle="modal" data-bs-target="#addSaleModal">
+            <i class="bi bi-plus-lg"></i> Add Sale
+        </button>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm" style="background: #1e293b; border: 2px solid #475569 !important; border-radius: 15px; overflow: hidden;">
+    <div class="table-responsive">
+        <table class="table table-dark table-hover align-middle mb-0">
+            <thead style="background: #0f172a;">
+                <tr>
+                    <th class="fw-bold py-3 ps-4 border-bottom border-secondary text-white-50">Bill No</th>
+                    <th class="fw-bold py-3 border-bottom border-secondary text-white-50">Status</th>
+                    <th class="fw-bold py-3 border-bottom border-secondary text-white-50">Client</th>
+                    <th class="fw-bold py-3 border-bottom border-secondary text-white-50">Product</th>
+                    <th class="fw-bold py-3 border-bottom border-secondary text-white-50">Qty</th>
+                    <th class="fw-bold py-3 border-bottom border-secondary text-white-50">Total</th>
+                    <th class="fw-bold py-3 border-bottom border-secondary text-white-50">Paid</th>
+                    <th class="fw-bold py-3 text-end pe-4 border-bottom border-secondary text-white-50">Actions</th>
+                </tr>
+            </thead>
+            <tbody style="background: #1e293b;">
+                {% for sale in sales %}
+                <tr style="border-bottom: 1px solid #334155;">
+                    <td class="ps-4">
+                        {% if sale.manual_bill_no %}
+                        <a href="/view_bill/{{ sale.manual_bill_no|replace('#', '%23') }}" class="badge bg-dark border border-secondary text-warning text-decoration-none">{{ sale.manual_bill_no }}</a>
+                        {% elif sale.invoice %}
+                        <a href="/view_bill/{{ sale.invoice.invoice_no|replace('#', '%23') }}" class="badge bg-dark border border-secondary text-info text-decoration-none">{{ sale.invoice.invoice_no }}</a>
+                        {% else %}
+                        <span class="badge bg-secondary text-white border border-secondary border-opacity-25">CASH-SALE</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if not sale.manual_bill_no and not sale.invoice_id %}
+                            <span class="badge bg-danger-subtle text-danger border border-danger border-opacity-25">UNBILLED</span>
+                        {% else %}
+                            <span class="badge bg-success-subtle text-success border border-success border-opacity-25">BILLED</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-white">{{ sale.client_name }}</td>
+                    <td class="text-white">
+                        {% if sale.items %}
+                            {{ sale.items[0].product_name }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td class="text-info fw-bold">
+                        {% if sale.items %}
+                            {{ sale.items[0].qty }}
+                        {% else %}
+                            0
+                        {% endif %}
+                    </td>
+                    <td class="text-danger fw-bold">{{ currency_symbol }}{{ "%.2f"|format(sale.amount) }}</td>
+                    <td class="text-success fw-bold">{{ currency_symbol }}{{ "%.2f"|format(sale.paid_amount) }}</td>
+                    <td class="text-end pe-4">
+                        {% if sale.invoice %}
+                        <a href="/view_bill/{{ sale.invoice.invoice_no|replace('#', '%23') }}" class="btn btn-outline-info btn-sm border-2 rounded-pill shadow-sm me-1" title="View Invoice"><i class="bi bi-receipt"></i></a>
+                        {% elif sale.manual_bill_no %}
+                        <a href="/view_bill/{{ sale.manual_bill_no|replace('#', '%23') }}" class="btn btn-outline-info btn-sm border-2 rounded-pill shadow-sm me-1" title="View"><i class="bi bi-eye"></i></a>
+                        {% else %}
+                        <button class="btn btn-outline-secondary btn-sm border-2 rounded-pill shadow-sm me-1" title="Cash Sale"><i class="bi bi-cash"></i></button>
+                        {% endif %}
+                        <button type="button" class="btn btn-outline-warning btn-sm border-2 rounded-pill shadow-sm me-1" data-bs-toggle="modal" data-bs-target="#editSaleModal{{ sale.id }}" title="Edit">
+                            <i class="bi bi-pencil"></i>
+                        </button>
+                        <a href="/delete_bill/Sale/{{ sale.id }}" class="btn btn-outline-danger btn-sm border-2 rounded-pill shadow-sm" onclick="return confirm('Delete sale?')"><i class="bi bi-trash"></i></a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal fade" id="addSaleModal" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <form class="modal-content border-secondary" style="background: #1e293b;" action="/add_direct_sale" method="POST" enctype="multipart/form-data">
+            <div class="modal-header border-0">
+                <h5 class="text-warning fw-bold">New Direct Sale</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-md-6 border-end border-secondary">
+                        <div class="mb-3 position-relative">
+                            <label class="text-white-50 small fw-bold mb-1">1. SELECT CLIENT</label>
+                            <div class="input-group">
+                                <input type="text" name="client_code" id="addSaleClientCode" class="form-control bg-dark text-white border-secondary" placeholder="Search by name or code..." autocomplete="off" required onfocus="showCombobox('addSaleClientCode', 'addSaleCombobox')" oninput="filterCombobox('addSaleClientCode', 'addSaleCombobox', 'addSaleClientNameDisplay'); updateBookingStatus(this.value)" value="{{ client_name_prefill or '' }}">
+                                <button class="btn btn-outline-secondary" type="button" onclick="toggleCombobox('addSaleClientCode', 'addSaleCombobox')">
+                                    <i class="bi bi-chevron-down text-warning"></i>
+                                </button>
+                            </div>
+                            <input type="hidden" name="client_name" id="addSaleClientNameHidden" value="{{ client_name_prefill or '' }}">
+                            <div id="addSaleCombobox" class="combobox-list shadow-lg" style="display: none;">
+                                {% for client in clients %}
+                                <div class="combobox-item" onclick="selectComboboxItem('addSaleClientCode', 'addSaleCombobox', '{{ client.code }}', '{{ client.name }}', 'addSaleClientNameDisplay'); updateBookingStatus('{{ client.code }}')">
+                                    <span class="fw-bold text-warning code-span">{{ client.code }}</span>
+                                    <span class="ms-2 text-white-50 small name-span">{{ client.name }}</span>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            <div id="addSaleClientNameDisplay" class="text-info small mt-1 fw-bold"></div>
+                        </div>
+                        <div id="bookingStatusContainer" class="p-3 bg-dark rounded border border-secondary" style="min-height: 200px;">
+                            <p class="text-white-50 text-center mt-5">Select a client to see booked items</p>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <label class="text-white-50 small fw-bold mb-1 d-block">2. SALE DETAILS</label>
+                        <div class="mb-3">
+                            <label class="text-white-50 small fw-bold mb-1">Category / Client Type</label>
+                            <select name="category" id="saleCategory" class="form-select form-select-sm bg-dark text-white border-secondary">
+                                <option value="Cash">Cash Sale (Unregistered)</option>
+                                <option value="Credit Customer">Credit Sale (Ledger)</option>
+                                <option value="Booking Customer">Adjust from Booking</option>
+                                {% for cat in categories %}
+                                    {% if cat not in ['Cash', 'Credit Customer', 'Booking Customer'] %}
+                                    <option value="{{ cat }}">{{ cat }}</option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="mb-3" id="manualClientNameGroup" style="display:none;">
+                            <label class="text-white-50 small fw-bold mb-1">Customer Name (Cash)</label>
+                            <input type="text" name="manual_client_name" id="manualClientName" class="form-control bg-dark text-white border-secondary">
+                        </div>
+                        <div id="sale-items-container">
+                            <div class="compact-item-row mb-3 p-2 rounded border border-secondary bg-dark">
+                                <div class="row g-2 align-items-center">
+                                    <div class="col-12 mb-2">
+                                        <select name="product_name[]" class="form-select form-select-sm bg-dark text-white border-secondary price-trigger" required>
+                                            <option value="">Material</option>
+                                            {% for mat in materials %}
+                                            <option value="{{ mat.name }}" data-price="{{ mat.unit_price }}">{{ mat.name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="input-group input-group-sm">
+                                            <button class="btn btn-outline-secondary btn-sm" type="button" onclick="changeSaleQty(this, -1)">-</button>
+                                            <input type="number" step="0.01" name="qty[]" value="1.00" class="form-control bg-dark text-white border-secondary text-center qty-input" required>
+                                            <button class="btn btn-outline-secondary btn-sm" type="button" onclick="changeSaleQty(this, 1)">+</button>
+                                        </div>
+                                    </div>
+                                    <div class="col-6 position-relative">
+                                        <input type="number" step="0.01" name="unit_rate[]" class="form-control form-control-sm bg-dark text-white border-secondary rate-input" placeholder="Rate" required>
+                                        <div class="remove-btn position-absolute top-0 end-0 translate-middle-y mt-2" onclick="this.closest('.compact-item-row').remove(); updateSalePrice(this.closest('form'));" style="cursor:pointer; z-index: 5;">
+                                            <i class="bi bi-x-circle-fill text-danger"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-sm btn-outline-warning mb-3 w-100" onclick="addSaleItemRow()">+ Add More Items</button>
+                        
+                        <div class="mb-3">
+                            <label class="text-white-50 small fw-bold mb-1">TOTAL AMOUNT</label>
+                            <input type="number" step="0.01" name="amount" id="saleTotal" class="form-control bg-dark text-white border-secondary total-amount" required readonly>
+                        </div>
+                        <div class="mb-3">
+                            <label class="text-white-50 small fw-bold mb-1">PAID NOW</label>
+                            <input type="number" step="0.01" name="paid_amount" class="form-control bg-dark text-white border-secondary" value="0">
+                        </div>
+                        <div class="mb-3">
+                            <label class="text-white-50 small fw-bold mb-1">MANUAL BILL NO</label>
+                            <input type="text" id="addSaleManualBill" name="manual_bill_no" class="form-control bg-dark text-white border-secondary">
+                        </div>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" name="has_bill" id="hasBillCheck" checked>
+                            <label class="form-check-label text-white-50" for="hasBillCheck">This transaction has a Bill No</label>
+                        </div>
+                        <div class="mb-3">
+                            <label class="text-white-50 small fw-bold mb-1">BILL PHOTO</label>
+                            <input type="file" name="photo" class="form-control bg-dark text-white border-secondary" accept="image/*">
+                        </div>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" name="create_invoice" id="createInvoiceCheck">
+                            <label class="form-check-label text-white-50" for="createInvoiceCheck">Create Invoice for this sale</label>
+                        </div>
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" name="track_as_cash" id="trackAsCashCheck">
+                            <label class="form-check-label text-white-50" for="trackAsCashCheck">Record as Cash Delivery (Track in Pending Bills)</label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="submit" class="btn btn-warning text-dark fw-bold w-100 py-2 rounded-pill">Save Sale</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% for sale in sales %}
+<div class="modal fade" id="editSaleModal{{ sale.id }}" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <form class="modal-content border-secondary" style="background: #1e293b;" action="/edit_bill/Sale/{{ sale.id }}" method="POST" enctype="multipart/form-data">
+            <div class="modal-header border-0">
+                <h5 class="text-warning fw-bold">Edit Sale: {{ sale.manual_bill_no or 'No Bill' }}</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-start">
+                <div class="mb-3 position-relative">
+                    <label class="text-white-50 small fw-bold mb-1">CLIENT (NAME OR CODE)</label>
+                    <div class="input-group">
+                        <input type="text" name="client_code" id="editSaleClientCode{{ sale.id }}" value="{{ sale.client_code or '' }}" class="form-control bg-dark text-white border-secondary" placeholder="Search by name or code..." autocomplete="off" required onfocus="showCombobox('editSaleClientCode{{ sale.id }}', 'editSaleCombobox{{ sale.id }}')" oninput="filterCombobox('editSaleClientCode{{ sale.id }}', 'editSaleCombobox{{ sale.id }}', 'editSaleClientNameDisplay{{ sale.id }}')">
+                        <button class="btn btn-outline-secondary" type="button" onclick="toggleCombobox('editSaleClientCode{{ sale.id }}', 'editSaleCombobox{{ sale.id }}')">
+                            <i class="bi bi-chevron-down text-warning"></i>
+                        </button>
+                    </div>
+                    <div id="editSaleCombobox{{ sale.id }}" class="combobox-list shadow-lg" style="display: none;">
+                        {% for client in clients %}
+                        <div class="combobox-item" onclick="selectComboboxItem('editSaleClientCode{{ sale.id }}', 'editSaleCombobox{{ sale.id }}', '{{ client.code }}', '{{ client.name }}', 'editSaleClientNameDisplay{{ sale.id }}')">
+                            <span class="fw-bold text-warning code-span">{{ client.code }}</span>
+                            <span class="ms-2 text-white-50 small name-span">{{ client.name }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    <div id="editSaleClientNameDisplay{{ sale.id }}" class="text-info small mt-1 fw-bold">Name: {{ sale.client_name }}</div>
+                </div>
+
+                <div class="items-container-edit">
+                    {% for item in sale.items %}
+                    <div class="compact-item-row mb-3 p-2 rounded border border-secondary bg-dark">
+                        <div class="row g-2 align-items-center">
+                            <div class="col-12 mb-2">
+                                <select name="product_name[]" class="form-select form-select-sm bg-dark text-white border-secondary price-trigger" required>
+                                    {% for mat in materials %}
+                                    <option value="{{ mat.name }}" data-price="{{ mat.unit_price }}" {% if mat.name == item.product_name %}selected{% endif %}>{{ mat.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-6">
+                                <div class="input-group input-group-sm">
+                                    <button class="btn btn-outline-secondary btn-sm" type="button" onclick="changeSaleQty(this, -1)">-</button>
+                                    <input type="number" step="0.01" name="qty[]" value="{{ "%.2f"|format(item.qty) }}" class="form-control bg-dark text-white border-secondary text-center qty-input" required>
+                                    <button class="btn btn-outline-secondary btn-sm" type="button" onclick="changeSaleQty(this, 1)">+</button>
+                                </div>
+                            </div>
+                            <div class="col-6 position-relative">
+                                <input type="number" step="0.01" name="unit_rate[]" class="form-control form-control-sm bg-dark text-white border-secondary rate-input" value="{{ item.price_at_time }}" required>
+                                <div class="remove-btn position-absolute top-0 end-0 translate-middle-y mt-2" onclick="this.closest('.compact-item-row').remove(); updateSalePrice(this.closest('form'));" style="cursor:pointer; z-index: 5;">
+                                    <i class="bi bi-x-circle-fill text-danger"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <button type="button" class="btn btn-sm btn-outline-warning mb-3 w-100" onclick="addSaleItemRowEdit(this)">+ Add More Items</button>
+
+                <div class="row">
+                    <div class="col-6 mb-3">
+                        <label class="text-white-50 small fw-bold mb-1">TOTAL AMOUNT</label>
+                        <input type="number" step="0.01" name="amount" class="form-control bg-dark text-white border-secondary total-amount" value="{{ sale.amount }}" required readonly>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <label class="text-white-50 small fw-bold mb-1">PAID AMOUNT</label>
+                        <input type="number" step="0.01" name="paid_amount" class="form-control bg-dark text-white border-secondary" value="{{ sale.paid_amount }}">
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="text-white-50 small fw-bold mb-1">CATEGORY / CLIENT TYPE</label>
+                    <select name="category" class="form-select form-select-sm bg-dark text-white border-secondary">
+                        <option value="Cash" {% if sale.category == 'Cash' %}selected{% endif %}>Cash Sale (Unregistered)</option>
+                        <option value="Credit Customer" {% if sale.category == 'Credit Customer' %}selected{% endif %}>Credit Sale (Ledger)</option>
+                        <option value="Booking Customer" {% if sale.category == 'Booking Customer' %}selected{% endif %}>Adjust from Booking</option>
+                        {% for cat in categories %}
+                            {% if cat not in ['Cash', 'Credit Customer', 'Booking Customer'] %}
+                            <option value="{{ cat }}" {% if sale.category == cat %}selected{% endif %}>{{ cat }}</option>
+                            {% endif %}
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="text-white-50 small fw-bold mb-1">MANUAL BILL NO</label>
+                    <input type="text" id="editSaleManualBill{{ sale.id }}" name="manual_bill_no" class="form-control bg-dark text-white border-secondary" value="{{ sale.manual_bill_no }}">
+                </div>
+                <div class="form-check mb-3">
+                    <input class="form-check-input edit-has-bill-checkbox" type="checkbox" name="has_bill" id="editHasBillCheck{{ sale.id }}" data-target="editSaleManualBill{{ sale.id }}" {% if sale.manual_bill_no %}checked{% endif %}>
+                    <label class="form-check-label text-white-50" for="editHasBillCheck{{ sale.id }}">This transaction has a Bill No</label>
+                </div>
+                <div class="mb-3">
+                    <label class="text-white-50 small fw-bold mb-1">UPDATE PHOTO</label>
+                    <input type="file" name="photo" class="form-control bg-dark text-white border-secondary" accept="image/*">
+                </div>
+            </div>
+            <div class="modal-footer border-0">
+                <button type="submit" class="btn btn-warning text-dark fw-bold w-100 py-2 rounded-pill">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endfor %}
+
+<script>
+function changeSaleQty(btn, delta) {
+    const input = btn.parentElement.querySelector('input');
+    let val = parseFloat(input.value) || 0;
+    val = Math.max(0, val + delta);
+    input.value = val.toFixed(2);
+    updateSalePrice(btn.closest('form'));
+}
+
+function addSaleItemRow() {
+    const container = document.getElementById('sale-items-container');
+    const firstRow = container.querySelector('.compact-item-row');
+    const newRow = firstRow.cloneNode(true);
+    newRow.querySelectorAll('input').forEach(i => {
+        if(i.classList.contains('qty-input')) { i.value = '1.00'; }
+        else { i.value = ''; }
+    });
+    newRow.querySelectorAll('select').forEach(s => s.selectedIndex = 0);
+    container.appendChild(newRow);
+    attachSaleListeners(newRow);
+}
+
+function addSaleItemRowEdit(btn) {
+    const container = btn.previousElementSibling;
+    const firstRow = document.querySelector('.compact-item-row');
+    const newRow = firstRow.cloneNode(true);
+    
+    newRow.querySelectorAll('input').forEach(i => {
+        if(i.classList.contains('qty-input')) { i.value = '1.00'; }
+        else { i.value = ''; }
+    });
+    newRow.querySelectorAll('select').forEach(s => s.selectedIndex = 0);
+    container.appendChild(newRow);
+    attachSaleListeners(newRow);
+}
+
+function attachSaleListeners(row) {
+    const select = row.querySelector('.price-trigger');
+    const rateInput = row.querySelector('.rate-input');
+    const qtyInput = row.querySelector('.qty-input');
+    
+    select.addEventListener('change', () => {
+        const option = select.options[select.selectedIndex];
+        const price = option.getAttribute('data-price') || 0;
+        rateInput.value = price;
+        updateSalePrice(row.closest('form'));
+    });
+
+    [rateInput, qtyInput].forEach(el => {
+        el.addEventListener('input', () => updateSalePrice(row.closest('form')));
+    });
+}
+
+function updateSalePrice(form) {
+    let total = 0;
+    form.querySelectorAll('.compact-item-row').forEach(row => {
+        const rateInput = row.querySelector('.rate-input');
+        const qtyInput = row.querySelector('.qty-input');
+        const price = parseFloat(rateInput.value) || 0;
+        const qty = parseFloat(qtyInput.value) || 0;
+        total += price * qty;
+    });
+    form.querySelector('.total-amount').value = total.toFixed(2);
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Other client logic...
+    document.querySelectorAll('.compact-item-row').forEach(row => attachSaleListeners(row));
+
+    // Toggle manual bill field in Add Sale modal
+    const addHasBill = document.getElementById('hasBillCheck');
+    const addManual = document.getElementById('addSaleManualBill');
+    if (addHasBill && addManual) {
+        const setAddState = () => {
+            if (addHasBill.checked) {
+                addManual.readOnly = false;
+                addManual.classList.remove('text-muted');
+            } else {
+                addManual.value = '';
+                addManual.readOnly = true;
+                addManual.classList.add('text-muted');
+            }
+        }
+        setAddState();
+        addHasBill.addEventListener('change', setAddState);
+    }
+
+    // Toggle manual client name when category == Cash
+    const saleCategory = document.getElementById('saleCategory');
+    const manualClientGroup = document.getElementById('manualClientNameGroup');
+    const clientCodeInput = document.getElementById('addSaleClientCode');
+    if (saleCategory) {
+        const setCatState = () => {
+            if (saleCategory.value.toLowerCase() === 'cash') {
+                manualClientGroup.style.display = '';
+                if (clientCodeInput) clientCodeInput.removeAttribute('required');
+            } else {
+                manualClientGroup.style.display = 'none';
+                if (clientCodeInput) clientCodeInput.setAttribute('required', 'required');
+            }
+        }
+        setCatState();
+        saleCategory.addEventListener('change', setCatState);
+    }
+    // Toggle manual bill for each Edit modal
+    document.querySelectorAll('.edit-has-bill-checkbox').forEach(cb => {
+        const targetId = cb.dataset.target;
+        const manual = document.getElementById(targetId);
+        if (!manual) return;
+        const setState = () => {
+            if (cb.checked) {
+                manual.readOnly = false;
+                manual.classList.remove('text-muted');
+            } else {
+                manual.value = '';
+                manual.readOnly = true;
+                manual.classList.add('text-muted');
+            }
+        }
+        setState();
+        cb.addEventListener('change', setState);
+    });
+});
+</script>
+{% endblock %}
