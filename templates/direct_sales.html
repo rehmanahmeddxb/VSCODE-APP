@@ -338,6 +338,46 @@ function addSaleItemRowEdit(btn) {
     attachSaleListeners(newRow);
 }
 
+function updateBookingStatus(clientCode) {
+    const container = document.getElementById('bookingStatusContainer');
+    if (!clientCode) {
+        container.innerHTML = '<p class="text-white-50 text-center mt-5">Select a client to see booked items</p>';
+        return;
+    }
+
+    fetch(`/api/client_booking_status/${clientCode}`)
+        .then(res => res.json())
+        .then(data => {
+            if (data.length === 0) {
+                container.innerHTML = '<p class="text-white-50 text-center mt-5">No bookings found for this client</p>';
+                return;
+            }
+            let html = '<label class="text-warning small fw-bold mb-2">CLIENT BOOKING STATUS</label>';
+            html += '<table class="table table-sm table-dark x-small">';
+            html += '<thead><tr><th>Material</th><th>Booked</th><th>Delivered</th><th>Bal</th></tr></thead><tbody>';
+            data.forEach(item => {
+                html += `<tr>
+                    <td>${item.material}</td>
+                    <td>${item.booked}</td>
+                    <td>${item.delivered}</td>
+                    <td class="text-info fw-bold">${item.balance}</td>
+                </tr>`;
+            });
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        })
+        .catch(err => {
+            console.error('Error fetching booking status:', err);
+            container.innerHTML = '<p class="text-danger text-center mt-5">Error loading status</p>';
+        });
+}
+
+// Initial category check for manual client name
+document.getElementById('saleCategory').addEventListener('change', function() {
+    const manualGroup = document.getElementById('manualClientNameGroup');
+    manualGroup.style.display = this.value === 'Cash' ? 'block' : 'none';
+});
+
 function attachSaleListeners(row) {
     const select = row.querySelector('.price-trigger');
     const rateInput = row.querySelector('.rate-input');

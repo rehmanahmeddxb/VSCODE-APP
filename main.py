@@ -551,9 +551,9 @@ def add_direct_sale():
 
     # Auto-add to PendingBill if it has a manual bill no or is a tracked credit sale
     if pending_amount > 0 and (manual_bill_no or (create_invoice and invoice_no) or (category and category.lower() != 'cash')):
-        # Link to client if possible
         client_code = client.code if client else None
         
+        # Search by pending_bill_no if it exists
         existing_pb = PendingBill.query.filter_by(bill_no=pending_bill_no, client_code=client_code).first() if pending_bill_no else None
         if not existing_pb:
             db.session.add(PendingBill(
@@ -574,61 +574,6 @@ def add_direct_sale():
                       manual_bill_no=manual_bill_no,
                       photo_path=photo_path,
                       category=category)
-    db.session.add(sale)
-    db.session.flush()
-
-    if create_invoice and inv:
-        sale.invoice_id = inv.id
-
-    items_created = []
-    for mat, qty, rate in zip(materials_list, qtys, rates):
-        if mat:
-            dsi = DirectSaleItem(sale_id=sale.id,
-                               product_name=mat,
-                               qty=float(qty) if qty else 0,
-                               price_at_time=float(rate) if rate else 0)
-            db.session.add(dsi)
-            items_created.append(dsi)
-
-    # Create dispatching Entry rows
-    now = datetime.now()
-    for item in items_created:
-        ledger_bill_ref = manual_bill_no if manual_bill_no else (inv.invoice_no if (create_invoice and inv) else "UNBILLED-" + str(sale.id))
-        
-        entry = Entry(date=now.strftime('%Y-%m-%d'),
-                      time=now.strftime('%H:%M:%S'),
-                      type='OUT',
-                      material=item.product_name,
-                      client=client_name,
-                      client_code=(client.code if client else None),
-                      qty=item.qty,
-                      bill_no=ledger_bill_ref,
-                      nimbus_no='Direct Sale',
-                      created_by=current_user.username,
-                      client_category=category)
-        db.session.add(entry)
-        
-        # Update Material stock (reduce In Hand)
-        mat_obj = Material.query.filter_by(name=item.product_name).first()
-        if mat_obj:
-            mat_obj.total = (mat_obj.total or 0) - item.qty
-        
-        # Update Material stock (reduce In Hand)
-        mat_obj = Material.query.filter_by(name=item.product_name).first()
-        if mat_obj:
-            mat_obj.total = (mat_obj.total or 0) - item.qty
-        
-        # Update Material stock (reduce In Hand)
-        mat_obj = Material.query.filter_by(name=item.product_name).first()
-        if mat_obj:
-            mat_obj.total = (mat_obj.total or 0) - item.qty
-
-    db.session.commit()
-    msg = 'Direct sale added successfully'
-    if create_invoice and inv:
-        msg += f" — Invoice: {inv.invoice_no}"
-    flash(msg, 'success')
-    return redirect(url_for('direct_sales_page'))
     db.session.add(sale)
     db.session.flush()
 
@@ -806,13 +751,19 @@ def delete_bill(type, id):
                 PendingBill.query.filter_by(bill_no=bill_no, client_code=client.code).delete()
     elif type == 'Payment':
         bill = Payment.query.get(id)
-    elif type == 'DirectSale':
-        bill = DirectSale.query.get(id)
+    elif type == 'Delivery':
+        from models import GRN
+        bill = GRN.query.get(id)
         if bill:
-            bill_no = bill.manual_bill_no
-            client = Client.query.filter_by(name=bill.client_name).first()
-            if client and bill_no:
-                PendingBill.query.filter_by(bill_no=bill_no, client_code=client.code).delete()
+            # Revert stock
+            for item in bill.items:
+                mat = Material.query.filter_by(name=item.product_name).first()
+                if mat:
+                    mat.total = (mat.total or 0) - item.qty
+            db.session.delete(bill)
+            db.session.commit()
+            flash('Delivery (GRN) deleted and stock reverted', 'success')
+            return redirect(url_for('grn_page'))
 
     if bill:
         db.session.delete(bill)
@@ -1081,6 +1032,24 @@ def dispatching():
                            clients=cls,
                            today_date=today)
 
+
+@app.route('/api/client_booking_status/<client_code>')
+@login_required
+def api_client_booking_status(client_code):
+    from models import Booking, BookingItem
+    bookings = Booking.query.filter_by(client_code=client_code).all()
+    booking_ids = [b.id for b in bookings]
+    items = BookingItem.query.filter(BookingItem.booking_id.in_(booking_ids)).all()
+    
+    status_data = []
+    for item in items:
+        status_data.append({
+            'material': item.product_name,
+            'booked': item.qty,
+            'delivered': item.delivered_qty or 0,
+            'balance': item.qty - (item.delivered_qty or 0)
+        })
+    return jsonify(status_data)
 
 @app.route('/add_record', methods=['POST'])
 @login_required
