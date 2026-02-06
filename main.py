@@ -550,7 +550,8 @@ def add_direct_sale():
     pending_bill_no = manual_bill_no if manual_bill_no else (invoice_no if create_invoice else None)
 
     # Auto-add to PendingBill if it has a manual bill no or is a tracked credit sale
-    if pending_amount > 0 and (manual_bill_no or (create_invoice and invoice_no) or (category and category.lower() != 'cash')):
+    # OR if it's an unregistered cash sale (to avoid orphan entries)
+    if (pending_amount > 0 and (manual_bill_no or (create_invoice and invoice_no) or (category and category.lower() != 'cash'))) or (category.lower() == 'cash'):
         client_code = client.code if client else None
         
         # Search by pending_bill_no if it exists
@@ -559,11 +560,12 @@ def add_direct_sale():
             db.session.add(PendingBill(
                 client_code=client_code,
                 client_name=(client.name if client else client_name),
-                bill_no=pending_bill_no,
+                bill_no=pending_bill_no or "CASH-SALE",
                 amount=pending_amount,
                 reason=f"Direct Sale: {materials_list[0] if materials_list else ''}",
                 is_cash=(category.lower() == 'cash') if category else False,
                 is_manual=bool(manual_bill_no),
+                is_paid=(pending_amount <= 0),
                 created_at=datetime.now().strftime('%Y-%m-%d %H:%M'),
                 created_by=current_user.username
             ))
@@ -934,7 +936,7 @@ def financial_ledger(client_id):
     for item in material_history:
         mat = item['material']
         if mat not in mat_balances: mat_balances[mat] = 0
-        mat_balances[mat] += (item['qty_added'] - item['qty_dispatched'])
+        mat_balances[mat] += (item.get('qty_added', 0) - item.get('qty_dispatched', 0))
         item['balance'] = mat_balances[mat]
 
     material_history.reverse()
