@@ -546,30 +546,6 @@ def add_direct_sale():
             db.session.add(inv)
             db.session.flush()
 
-    # Determine bill number for pending bill
-    pending_bill_no = manual_bill_no if manual_bill_no else (invoice_no if create_invoice else None)
-
-    # Auto-add to PendingBill if it has a manual bill no or is a tracked credit sale
-    # OR if it's an unregistered cash sale (to avoid orphan entries)
-    if (pending_amount > 0 and (manual_bill_no or (create_invoice and invoice_no) or (category and category.lower() != 'cash'))) or (category.lower() == 'cash'):
-        client_code = client.code if client else None
-        
-        # Search by pending_bill_no if it exists
-        existing_pb = PendingBill.query.filter_by(bill_no=pending_bill_no, client_code=client_code).first() if pending_bill_no else None
-        if not existing_pb:
-            db.session.add(PendingBill(
-                client_code=client_code,
-                client_name=(client.name if client else client_name),
-                bill_no=pending_bill_no or "CASH-SALE",
-                amount=pending_amount,
-                reason=f"Direct Sale: {materials_list[0] if materials_list else ''}",
-                is_cash=(category.lower() == 'cash') if category else False,
-                is_manual=bool(manual_bill_no),
-                is_paid=(pending_amount <= 0),
-                created_at=datetime.now().strftime('%Y-%m-%d %H:%M'),
-                created_by=current_user.username
-            ))
-
     sale = DirectSale(client_name=client_name,
                       amount=amount,
                       paid_amount=paid_amount,
@@ -578,6 +554,37 @@ def add_direct_sale():
                       category=category)
     db.session.add(sale)
     db.session.flush()
+
+    # Determine bill number for pending bill
+    pending_bill_no = manual_bill_no if manual_bill_no else (invoice_no if create_invoice else None)
+
+    # Auto-add to PendingBill if it has a manual bill no or is a tracked credit sale
+    # OR if it's an unregistered cash sale (to avoid orphan entries)
+    # UNBILLED cash sales are given a dummy bill number to show up in ledgers
+    if (pending_amount > 0 and (manual_bill_no or (create_invoice and invoice_no) or (category and category.lower() != 'cash'))) or (category.lower() == 'cash'):
+        client_code = client.code if client else None
+        
+        # Determine bill number for the pending bill record
+        # If no bill exists for a cash sale, use a placeholder
+        pb_bill_no = pending_bill_no
+        if not pb_bill_no and category.lower() == 'cash':
+            pb_bill_no = f"CSH-{sale.id}"
+            
+        # Search by pb_bill_no if it exists
+        existing_pb = PendingBill.query.filter_by(bill_no=pb_bill_no, client_code=client_code).first() if pb_bill_no else None
+        if not existing_pb:
+            db.session.add(PendingBill(
+                client_code=client_code,
+                client_name=(client.name if client else client_name),
+                bill_no=pb_bill_no,
+                amount=pending_amount,
+                reason=f"Direct Sale: {materials_list[0] if materials_list else ''}",
+                is_cash=(category.lower() == 'cash') if category else False,
+                is_manual=bool(manual_bill_no),
+                is_paid=(pending_amount <= 0),
+                created_at=datetime.now().strftime('%Y-%m-%d %H:%M'),
+                created_by=current_user.username
+            ))
 
     if create_invoice and inv:
         sale.invoice_id = inv.id
