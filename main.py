@@ -888,12 +888,27 @@ def financial_ledger(client_id):
             'material': d.material,
             'qty': d.qty,
             'bill_no': d.bill_no or d.auto_bill_no,
-            'nimbus_no': d.nimbus_no
+            'nimbus_no': d.nimbus_no,
+            'type': 'Dispatch'
         })
         if d.bill_no:
             seen_material_bills.add(d.bill_no)
         if d.auto_bill_no:
             seen_material_bills.add(d.auto_bill_no)
+
+    # Add Bookings to Material Ledger
+    bookings = Booking.query.filter_by(client_name=client.name).all()
+    for b in bookings:
+        for item in b.items:
+            material_history.append({
+                'date': b.date_posted.strftime('%Y-%m-%d') if b.date_posted else (b.created_at[:10] if b.created_at else ''),
+                'material': item.product_name,
+                'qty_added': item.qty,
+                'qty_dispatched': 0,
+                'bill_no': b.manual_bill_no,
+                'nimbus_no': 'Booking',
+                'type': 'Booking'
+            })
 
     for s in direct_sales:
         bill_ref = s.manual_bill_no or s.auto_bill_no
@@ -902,10 +917,29 @@ def financial_ledger(client_id):
                 material_history.append({
                     'date': s.date_posted.strftime('%Y-%m-%d') if s.date_posted else '',
                     'material': item.product_name,
-                    'qty': item.qty,
+                    'qty_added': 0,
+                    'qty_dispatched': item.qty,
                     'bill_no': bill_ref,
-                    'nimbus_no': 'Direct Sale'
+                    'nimbus_no': 'Direct Sale',
+                    'type': 'Dispatch'
                 })
+
+    # Normalize keys and sort for running balance
+    for item in material_history:
+        if 'qty_added' not in item: item['qty_added'] = item.get('qty', 0) if item.get('type') == 'Booking' else 0
+        if 'qty_dispatched' not in item: item['qty_dispatched'] = item.get('qty', 0) if item.get('type') == 'Dispatch' else 0
+
+    material_history.sort(key=lambda x: x['date'] or '')
+
+    # Running balance per material
+    mat_balances = {}
+    for item in material_history:
+        mat = item['material']
+        if mat not in mat_balances: mat_balances[mat] = 0
+        mat_balances[mat] += (item['qty_added'] - item['qty_dispatched'])
+        item['balance'] = mat_balances[mat]
+
+    material_history.reverse()
 
     # Calculate totals
     total_debit = sum(item['debit'] for item in financial_history)

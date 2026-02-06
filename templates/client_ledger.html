@@ -74,20 +74,25 @@
                     <thead style="background: #020617;">
                         <tr>
                             <th class="ps-3">Date</th>
-                            <th>Material</th>
-                            <th class="text-end">Qty</th>
                             <th>Bill #</th>
-                            <th class="pe-3">Nimbus #</th>
+                            <th>Material</th>
+                            <th class="text-end">Qty Added</th>
+                            <th class="text-end">Dispatched</th>
+                            <th class="text-end pe-3">Total Remainings</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for m in material_history %}
                         <tr style="border-bottom: 1px solid #334155;">
                             <td class="ps-3 small">{{ m.date }}</td>
+                            <td>
+                                <span class="badge bg-dark border border-secondary text-warning">{{ m.bill_no or '---' }}</span>
+                                <br><small class="text-white-50">{{ m.nimbus_no or '' }}</small>
+                            </td>
                             <td class="fw-bold">{{ m.material }}</td>
-                            <td class="text-end text-warning fw-bold">{{ m.qty|int }}</td>
-                            <td class="small text-white-50">{{ m.bill_no or '---' }}</td>
-                            <td class="pe-3 small text-white-50">{{ m.nimbus_no or '---' }}</td>
+                            <td class="text-end text-success fw-bold">{{ m.qty_added|int if m.qty_added > 0 else '---' }}</td>
+                            <td class="text-end text-danger fw-bold">{{ m.qty_dispatched|int if m.qty_dispatched > 0 else '---' }}</td>
+                            <td class="text-end pe-3 fw-bold text-info">{{ m.balance|int }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>
