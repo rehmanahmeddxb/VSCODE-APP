@@ -882,11 +882,13 @@ def financial_ledger(client_id):
     material_history = []
     seen_material_bills = set()
     
+    # Process Deliveries/Entries
     for d in deliveries:
         material_history.append({
             'date': d.date,
             'material': d.material,
-            'qty': d.qty,
+            'qty_added': 0,
+            'qty_dispatched': d.qty,
             'bill_no': d.bill_no or d.auto_bill_no,
             'nimbus_no': d.nimbus_no,
             'type': 'Dispatch'
@@ -902,7 +904,7 @@ def financial_ledger(client_id):
         for item in b.items:
             material_history.append({
                 'date': b.date_posted.strftime('%Y-%m-%d') if b.date_posted else (b.created_at[:10] if b.created_at else ''),
-                'material': item.product_name,
+                'material': item.material_name,
                 'qty_added': item.qty,
                 'qty_dispatched': 0,
                 'bill_no': b.manual_bill_no,
