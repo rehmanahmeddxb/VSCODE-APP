@@ -926,11 +926,7 @@ def financial_ledger(client_id):
                     'type': 'Dispatch'
                 })
 
-    # Normalize keys and sort for running balance
-    for item in material_history:
-        if 'qty_added' not in item: item['qty_added'] = item.get('qty', 0) if item.get('type') == 'Booking' else 0
-        if 'qty_dispatched' not in item: item['qty_dispatched'] = item.get('qty', 0) if item.get('type') == 'Dispatch' else 0
-
+    # Sort by date (oldest first)
     material_history.sort(key=lambda x: x['date'] or '')
 
     # Running balance per material
