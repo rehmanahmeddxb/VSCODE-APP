@@ -1,11 +1,34 @@
 {% extends "layout.html" %}
 {% block content %}
 <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
-    <h2 class="fw-bold text-warning mb-0"><i class="bi bi-cart-check me-2"></i>Direct Sales</h2>
+    <h2 class="fw-bold text-warning mb-0"><i class="bi bi-cart-check me-2"></i>Sales</h2>
     <div class="d-flex gap-2 flex-wrap">
-        <button class="btn btn-warning btn-sm text-dark fw-bold" data-bs-toggle="modal" data-bs-target="#addSaleModal">
+        <a href="/" class="btn btn-outline-light btn-sm fw-bold"><i class="bi bi-arrow-left me-1"></i> Back</a>
+        <a href="/mixed_transactions" class="btn btn-outline-info btn-sm fw-bold"><i class="bi bi-shuffle me-1"></i> Mixed Report</a>
+        <button class="btn btn-warning btn-sm text-dark fw-bold" onclick="openAddSaleModal('Billed')">
             <i class="bi bi-plus-lg"></i> Add Sale
         </button>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="card bg-dark border-secondary text-white h-100 shadow-sm" style="cursor: pointer; transition: transform 0.2s;" onclick="openAddSaleModal('Billed')" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
+            <div class="card-body text-center">
+                <h6 class="text-white-50 text-uppercase small fw-bold"><i class="bi bi-receipt me-2"></i>Billed Sales (Credit / Booking)</h6>
+                <h2 class="text-info mb-0">{{ stats.billed }}</h2>
+                <span class="badge bg-warning text-dark mt-2">Click to Add</span>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card bg-dark border-secondary text-white h-100 shadow-sm" style="cursor: pointer; transition: transform 0.2s;" onclick="openAddSaleModal('Unbilled')" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='translateY(0)'">
+            <div class="card-body text-center">
+                <h6 class="text-white-50 text-uppercase small fw-bold"><i class="bi bi-cash-coin me-2"></i>Unbilled Sales (Cash)</h6>
+                <h2 class="text-success mb-0">{{ stats.unbilled }}</h2>
+                <span class="badge bg-success text-white mt-2">Click to Add</span>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -26,7 +49,7 @@
             </thead>
             <tbody style="background: #1e293b;">
                 {% for sale in sales %}
-                <tr style="border-bottom: 1px solid #334155;">
+                <tr style="border-bottom: 1px solid #334155; {% if sale.is_void %}opacity: 0.5; text-decoration: line-through;{% endif %}">
                     <td class="ps-4">
                         {% if sale.manual_bill_no %}
                         <a href="/view_bill/{{ sale.manual_bill_no|replace('#', '%23') }}" class="badge bg-dark border border-secondary text-warning text-decoration-none">{{ sale.manual_bill_no }}</a>
@@ -37,10 +60,14 @@
                         {% endif %}
                     </td>
                     <td>
-                        {% if not sale.manual_bill_no and not sale.invoice_id %}
-                            <span class="badge bg-danger-subtle text-danger border border-danger border-opacity-25">UNBILLED</span>
+                        {% if sale.is_void %}
+                            <span class="badge bg-danger">VOID</span>
                         {% else %}
+                            {% if not sale.manual_bill_no and not sale.invoice_id %}
+                            <span class="badge bg-danger-subtle text-danger border border-danger border-opacity-25">UNBILLED</span>
+                            {% else %}
                             <span class="badge bg-success-subtle text-success border border-success border-opacity-25">BILLED</span>
+                            {% endif %}
                         {% endif %}
                     </td>
                     <td class="text-white">{{ sale.client_name }}</td>
@@ -61,6 +88,7 @@
                     <td class="text-danger fw-bold">{{ currency_symbol }}{{ "%.2f"|format(sale.amount) }}</td>
                     <td class="text-success fw-bold">{{ currency_symbol }}{{ "%.2f"|format(sale.paid_amount) }}</td>
                     <td class="text-end pe-4">
+                        {% if not sale.is_void %}
                         {% if sale.invoice %}
                         <a href="/view_bill/{{ sale.invoice.invoice_no|replace('#', '%23') }}" class="btn btn-outline-info btn-sm border-2 rounded-pill shadow-sm me-1" title="View Invoice"><i class="bi bi-receipt"></i></a>
                         {% elif sale.manual_bill_no %}
@@ -71,6 +99,11 @@
                         <button type="button" class="btn btn-outline-warning btn-sm border-2 rounded-pill shadow-sm me-1" data-bs-toggle="modal" data-bs-target="#editSaleModal{{ sale.id }}" title="Edit">
                             <i class="bi bi-pencil"></i>
                         </button>
+                        {% if current_user.role == 'admin' %}
+                        <button class="btn btn-outline-danger btn-sm border-2 rounded-pill shadow-sm me-1" onclick="if(confirm('VOID this sale? Stock will be reversed.')) { document.getElementById('voidSaleForm{{ sale.id }}').submit(); }">Void</button>
+                        <form id="voidSaleForm{{ sale.id }}" action="/void_transaction/DirectSale/{{ sale.id }}" method="POST" style="display:none;"></form>
+                        {% endif %}
+                        {% endif %}
                         <a href="/delete_bill/Sale/{{ sale.id }}" class="btn btn-outline-danger btn-sm border-2 rounded-pill shadow-sm" onclick="return confirm('Delete sale?')"><i class="bi bi-trash"></i></a>
                     </td>
                 </tr>
@@ -84,7 +117,7 @@
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <form class="modal-content border-secondary" style="background: #1e293b;" action="/add_direct_sale" method="POST" enctype="multipart/form-data">
             <div class="modal-header border-0">
-                <h5 class="text-warning fw-bold">New Direct Sale</h5>
+                <h5 class="text-warning fw-bold" id="addSaleModalLabel">New Direct Sale</h5>
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body">
@@ -92,7 +125,7 @@
                     <div class="col-md-6 border-end border-secondary">
                         <div class="mb-3 position-relative">
                             <label class="text-white-50 small fw-bold mb-1">1. SELECT CLIENT</label>
-                            <div class="input-group">
+                            <div class="input-group" id="clientSearchGroup">
                                 <input type="text" name="client_code" id="addSaleClientCode" class="form-control bg-dark text-white border-secondary" placeholder="Search by name or code..." autocomplete="off" required onfocus="showCombobox('addSaleClientCode', 'addSaleCombobox')" oninput="filterCombobox('addSaleClientCode', 'addSaleCombobox', 'addSaleClientNameDisplay'); updateBookingStatus(this.value)" value="{{ client_name_prefill or '' }}">
                                 <button class="btn btn-outline-secondary" type="button" onclick="toggleCombobox('addSaleClientCode', 'addSaleCombobox')">
                                     <i class="bi bi-chevron-down text-warning"></i>
@@ -109,6 +142,10 @@
                             </div>
                             <div id="addSaleClientNameDisplay" class="text-info small mt-1 fw-bold"></div>
                         </div>
+                        <div class="mb-3" id="manualClientNameGroup" style="display:none;">
+                            <label class="text-white-50 small fw-bold mb-1">Customer Name (Manual)</label>
+                            <input type="text" name="manual_client_name" id="manualClientName" class="form-control bg-dark text-white border-secondary" placeholder="Enter name for unregistered client">
+                        </div>
                         <div id="bookingStatusContainer" class="p-3 bg-dark rounded border border-secondary" style="min-height: 200px; overflow-y: auto;">
                             <p class="text-white-50 text-center mt-5">Select a client to see booked items</p>
                         </div>
@@ -116,42 +153,45 @@
                     
                     <div class="col-md-6">
                         <label class="text-white-50 small fw-bold mb-1 d-block">2. SALE DETAILS</label>
-                        <div class="mb-3">
-                            <label class="text-white-50 small fw-bold mb-1">Category / Client Type</label>
+                        <!-- Hidden category input, managed by JS -->
+                        <input type="hidden" name="category" id="saleCategory">
+                        <div class="mb-3" id="categorySelectDiv">
+                            <label class="text-white-50 small fw-bold mb-1">CATEGORY / CLIENT TYPE</label>
                             <select name="category" id="saleCategory" class="form-select form-select-sm bg-dark text-white border-secondary">
-                                <option value="Cash">Cash Sale (Unregistered)</option>
-                                <option value="Credit Customer">Credit Sale (Ledger)</option>
-                                <option value="Booking Customer">Adjust from Booking</option>
-                                {% for cat in categories %}
-                                    {% if cat not in ['Cash', 'Credit Customer', 'Booking Customer'] %}
-                                    <option value="{{ cat }}">{{ cat }}</option>
-                                    {% endif %}
+                                <option value="Credit Customer">Credit Sale</option>
+                                <option value="Booking Customer">Booking Sale</option>
+                                <option value="Mixed Transaction">Mixed Transaction</option>
+                                <option value="Cash">Cash Sale</option>
+                                {% for cat in categories if cat not in ['Cash', 'Credit Customer', 'Booking Customer'] %}
+                                <option value="{{ cat }}">{{ cat }}</option>
                                 {% endfor %}
                             </select>
                         </div>
-                        <div class="mb-3" id="manualClientNameGroup" style="display:none;">
-                            <label class="text-white-50 small fw-bold mb-1">Customer Name (Cash)</label>
-                            <input type="text" name="manual_client_name" id="manualClientName" class="form-control bg-dark text-white border-secondary">
+                        
+                        <div class="form-check mb-3" id="manualClientToggleDiv" style="display:none;">
+                            <input class="form-check-input" type="checkbox" id="manualClientCheck">
+                            <label class="form-check-label text-white-50 small" for="manualClientCheck">Unregistered / Manual Client Name</label>
                         </div>
                         <div id="sale-items-container">
                             <div class="compact-item-row mb-3 p-2 rounded border border-secondary bg-dark">
                                 <div class="row g-2 align-items-center">
-                                    <div class="col-12 mb-2">
+                                    <div class="col-5">
                                         <select name="product_name[]" class="form-select form-select-sm bg-dark text-white border-secondary price-trigger" required>
                                             <option value="">Material</option>
                                             {% for mat in materials %}
                                             <option value="{{ mat.name }}" data-price="{{ mat.unit_price }}">{{ mat.name }}</option>
                                             {% endfor %}
                                         </select>
+                                        <div class="item-status-badge mt-1"></div>
                                     </div>
-                                    <div class="col-6">
+                                    <div class="col-4">
                                         <div class="input-group input-group-sm">
                                             <button class="btn btn-outline-secondary btn-sm" type="button" onclick="changeSaleQty(this, -1)">-</button>
                                             <input type="number" step="0.01" name="qty[]" value="1.00" class="form-control bg-dark text-white border-secondary text-center qty-input" required>
                                             <button class="btn btn-outline-secondary btn-sm" type="button" onclick="changeSaleQty(this, 1)">+</button>
                                         </div>
                                     </div>
-                                    <div class="col-6 position-relative">
+                                    <div class="col-3 position-relative">
                                         <input type="number" step="0.01" name="unit_rate[]" class="form-control form-control-sm bg-dark text-white border-secondary rate-input" placeholder="Rate" required>
                                         <div class="remove-btn position-absolute top-0 end-0 translate-middle-y mt-2" onclick="this.closest('.compact-item-row').remove(); updateSalePrice(this.closest('form'));" style="cursor:pointer; z-index: 5;">
                                             <i class="bi bi-x-circle-fill text-danger"></i>
@@ -164,7 +204,8 @@
                         
                         <div class="mb-3">
                             <label class="text-white-50 small fw-bold mb-1">TOTAL AMOUNT</label>
-                            <input type="number" step="0.01" name="amount" id="saleTotal" class="form-control bg-dark text-white border-secondary total-amount" required readonly>
+                            <input type="number" step="0.01" name="amount" id="saleTotal" class="form-control bg-dark text-white border-secondary total-amount" required>
+                            <small class="text-white-50 x-small" id="amountHelp">Adjust this amount for mixed booking/credit bills.</small>
                         </div>
                         <div class="mb-3">
                             <label class="text-white-50 small fw-bold mb-1">PAID NOW</label>
@@ -174,7 +215,7 @@
                             <label class="text-white-50 small fw-bold mb-1">MANUAL BILL NO</label>
                             <input type="text" id="addSaleManualBill" name="manual_bill_no" class="form-control bg-dark text-white border-secondary">
                         </div>
-                        <div class="form-check mb-3">
+                        <div class="form-check mb-3" id="hasBillDiv">
                             <input class="form-check-input" type="checkbox" name="has_bill" id="hasBillCheck" checked>
                             <label class="form-check-label text-white-50" for="hasBillCheck">This transaction has a Bill No</label>
                         </div>
@@ -190,11 +231,22 @@
                             <input class="form-check-input" type="checkbox" name="track_as_cash" id="trackAsCashCheck">
                             <label class="form-check-label text-white-50" for="trackAsCashCheck">Record as Cash Delivery (Track in Pending Bills)</label>
                         </div>
+                        {% if not settings or not settings.allow_global_negative_stock %}
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" name="allow_negative_stock" id="allowNegativeStock">
+                            <label class="form-check-label text-danger" for="allowNegativeStock">Allow Negative Stock (Override Limit)</label>
+                        </div>
+                        {% else %}
+                        <div class="alert alert-danger py-2 small mt-3">
+                            <i class="bi bi-exclamation-triangle-fill me-1"></i> Global setting for <strong>Negative Stock Override</strong> is active.
+                        </div>
+                        {% endif %}
                     </div>
                 </div>
             </div>
-            <div class="modal-footer border-0">
-                <button type="submit" class="btn btn-warning text-dark fw-bold w-100 py-2 rounded-pill">Save Sale</button>
+            <div class="modal-footer border-0 d-flex gap-2">
+                <button type="button" class="btn btn-outline-secondary flex-grow-1 py-2 rounded-pill fw-bold" onclick="resetAddSaleForm()">Reset</button>
+                <button type="submit" class="btn btn-warning text-dark fw-bold flex-grow-1 py-2 rounded-pill">Save Sale</button>
             </div>
         </form>
     </div>
@@ -238,6 +290,7 @@
                                     <option value="{{ mat.name }}" data-price="{{ mat.unit_price }}" {% if mat.name == item.product_name %}selected{% endif %}>{{ mat.name }}</option>
                                     {% endfor %}
                                 </select>
+                                <div class="item-status-badge mt-1"></div>
                             </div>
                             <div class="col-6">
                                 <div class="input-group input-group-sm">
@@ -274,8 +327,9 @@
                         <option value="Cash" {% if sale.category == 'Cash' %}selected{% endif %}>Cash Sale (Unregistered)</option>
                         <option value="Credit Customer" {% if sale.category == 'Credit Customer' %}selected{% endif %}>Credit Sale (Ledger)</option>
                         <option value="Booking Customer" {% if sale.category == 'Booking Customer' %}selected{% endif %}>Adjust from Booking</option>
+                        <option value="Mixed Transaction" {% if sale.category == 'Mixed Transaction' %}selected{% endif %}>Mixed Transaction</option>
                         {% for cat in categories %}
-                            {% if cat not in ['Cash', 'Credit Customer', 'Booking Customer'] %}
+                            {% if cat not in ['Cash', 'Credit Customer', 'Booking Customer', 'Mixed Transaction'] %}
                             <option value="{{ cat }}" {% if sale.category == cat %}selected{% endif %}>{{ cat }}</option>
                             {% endif %}
                         {% endfor %}
@@ -338,8 +392,13 @@ function addSaleItemRowEdit(btn) {
     attachSaleListeners(newRow);
 }
 
+// Global to store booking info
+let currentClientBookings = {};
+
 function updateBookingStatus(clientCode) {
     const container = document.getElementById('bookingStatusContainer');
+    currentClientBookings = {}; // Reset
+
     if (!clientCode) {
         container.innerHTML = '<p class="text-white-50 text-center mt-5">Select a client to see booked items</p>';
         return;
@@ -352,6 +411,24 @@ function updateBookingStatus(clientCode) {
                 container.innerHTML = '<p class="text-white-50 text-center mt-5">No bookings found for this client</p>';
                 return;
             }
+            
+            // Store for row logic
+            data.forEach(item => {
+                if(item.balance > 0) currentClientBookings[item.material] = item.balance;
+            });
+
+            // Auto-detect client type: Booking Reserved
+            const categorySelect = document.getElementById('saleCategory');
+            const hasBookings = Object.keys(currentClientBookings).length > 0;
+            
+            if (hasBookings && categorySelect) {
+                // If client has bookings, default to Booking Customer
+                if (categorySelect.value !== 'Booking Customer') {
+                    categorySelect.value = 'Booking Customer';
+                    categorySelect.dispatchEvent(new Event('change'));
+                }
+            }
+
             let html = '<label class="text-warning small fw-bold mb-2">CLIENT BOOKING STATUS</label>';
             data.forEach(item => {
                 const colorClass = item.balance > 0 ? 'text-success' : 'text-danger';
@@ -371,6 +448,9 @@ function updateBookingStatus(clientCode) {
                 </div>`;
             });
             container.innerHTML = html;
+            
+            // Re-check all existing rows
+            document.querySelectorAll('.compact-item-row').forEach(row => checkItemBookingStatus(row));
         })
         .catch(err => {
             console.error('Error fetching booking status:', err);
@@ -378,39 +458,230 @@ function updateBookingStatus(clientCode) {
         });
 }
 
-// Initial category check for manual client name
-document.getElementById('saleCategory').addEventListener('change', function() {
+// Category Change Logic
+const saleCategory = document.getElementById('saleCategory');
+const manualClientCheck = document.getElementById('manualClientCheck');
+const manualToggleDiv = document.getElementById('manualClientToggleDiv');
+
+function updateClientInputVisibility() {
     const manualGroup = document.getElementById('manualClientNameGroup');
-    manualGroup.style.display = this.value === 'Cash' ? 'block' : 'none';
-});
+    const searchGroup = document.getElementById('clientSearchGroup');
+    const clientCodeInput = document.getElementById('addSaleClientCode');
+
+    const isCash = saleCategory.value === 'Cash';
+    const isCredit = saleCategory.value === 'Credit Customer';
+    const isManualChecked = manualClientCheck.checked;
+    const isBooking = saleCategory.value === 'Booking Customer';
+
+    // Re-evaluate all rows for booking status
+    document.querySelectorAll('.compact-item-row').forEach(row => checkItemBookingStatus(row));
+    
+    // Show toggle only for Credit
+    manualToggleDiv.style.display = isCredit ? 'block' : 'none';
+
+    if (isCash || (isCredit && isManualChecked)) {
+        manualGroup.style.display = 'block';
+        searchGroup.style.display = 'none';
+        clientCodeInput.removeAttribute('required');
+    } else {
+        manualGroup.style.display = 'none';
+        searchGroup.style.display = 'flex';
+        clientCodeInput.setAttribute('required', 'required');
+    }
+    
+    const form = document.querySelector('#addSaleModal form');
+    if (form) updateSalePrice(form);
+}
+
+if (saleCategory) saleCategory.addEventListener('change', updateClientInputVisibility);
+if (manualClientCheck) manualClientCheck.addEventListener('change', updateClientInputVisibility);
+
+function checkItemBookingStatus(row) {
+    const select = row.querySelector('.price-trigger');
+    const rateInput = row.querySelector('.rate-input');
+    const statusBadge = row.querySelector('.item-status-badge');
+    
+    // Find category input in the same form
+    const form = row.closest('form');
+    let categoryValue = '';
+    if (form) {
+        const catInput = form.querySelector('[name="category"]');
+        if (catInput) categoryValue = catInput.value;
+    }
+    
+    if (!select || !rateInput) return;
+    
+    const material = select.value;
+    // Check if material is booked for this client
+    const balance = currentClientBookings[material] || 0;
+    const currentQty = parseFloat(row.querySelector('.qty-input').value) || 0;
+    
+    if (balance > 0) {
+        if (currentQty <= balance) {
+            // Fully covered by booking
+            rateInput.value = 0;
+            rateInput.readOnly = true;
+            rateInput.classList.add('text-muted', 'bg-secondary', 'bg-opacity-10');
+            if (statusBadge) statusBadge.innerHTML = `<span class="badge bg-warning text-dark" style="font-size: 0.65rem;"><i class="bi bi-bookmark-check me-1"></i>BOOKED (${balance})</span>`;
+        } else {
+            // Mixed (Partially booked, part sale)
+            // Enable price editing for the excess portion
+            if (rateInput.readOnly) rateInput.readOnly = false;
+            rateInput.classList.remove('text-muted', 'bg-secondary', 'bg-opacity-10');
+            rateInput.title = "Enter price for the " + (currentQty - balance).toFixed(2) + " non-booked items (Excess)";
+            if (statusBadge) statusBadge.innerHTML = `<span class="badge bg-info text-dark" style="font-size: 0.65rem;">MIXED (Bal: ${balance})</span>`;
+        }
+    } else {
+        // Not booked -> Non-Booked Material
+        if (rateInput.readOnly) {
+            rateInput.readOnly = false;
+            rateInput.classList.remove('text-muted', 'bg-secondary', 'bg-opacity-10');
+            rateInput.title = "Enter price for non-booked item";
+        }
+        if (statusBadge) {
+            statusBadge.innerHTML = '<span class="badge bg-info text-dark" style="font-size: 0.65rem;">NON-BOOKED</span>';
+        }
+    }
+    updateSalePrice(form);
+}
 
 function attachSaleListeners(row) {
     const select = row.querySelector('.price-trigger');
     const rateInput = row.querySelector('.rate-input');
     const qtyInput = row.querySelector('.qty-input');
+    const saleCategory = document.getElementById('saleCategory');
     
     select.addEventListener('change', () => {
-        const option = select.options[select.selectedIndex];
-        const price = option.getAttribute('data-price') || 0;
-        rateInput.value = price;
-        updateSalePrice(row.closest('form'));
+        checkItemBookingStatus(row);
     });
 
     [rateInput, qtyInput].forEach(el => {
         el.addEventListener('input', () => updateSalePrice(row.closest('form')));
     });
+    qtyInput.addEventListener('input', () => checkItemBookingStatus(row));
 }
 
 function updateSalePrice(form) {
     let total = 0;
+    // Clone balance map to track usage across rows (in case multiple rows use same material)
+    let tempBalances = {...currentClientBookings};
+
     form.querySelectorAll('.compact-item-row').forEach(row => {
         const rateInput = row.querySelector('.rate-input');
         const qtyInput = row.querySelector('.qty-input');
+        const select = row.querySelector('.price-trigger');
+
         const price = parseFloat(rateInput.value) || 0;
         const qty = parseFloat(qtyInput.value) || 0;
-        total += price * qty;
+        const material = select.value;
+
+        let balance = tempBalances[material] || 0;
+        let chargeableQty = qty;
+
+        if (balance > 0) {
+            if (qty <= balance) {
+                chargeableQty = 0; // Fully covered by booking
+                tempBalances[material] -= qty;
+            } else {
+                chargeableQty = qty - balance; // Only charge for excess
+                tempBalances[material] = 0;
+            }
+        }
+
+        total += price * chargeableQty;
     });
-    form.querySelector('.total-amount').value = total.toFixed(2);
+    
+    const totalInput = form.querySelector('.total-amount');
+    // Only auto-update total if it's readonly (Unbilled) or if user hasn't manually edited it (hard to track, so we just update it)
+    // Actually for Billed mode, we want to allow override. But usually it sums up.
+    // Let's update it, but user can change it after.
+    totalInput.value = total.toFixed(2);
+    
+    // Auto-fill paid amount if Cash Sale
+    const cat = document.getElementById('saleCategory').value;
+    if (cat === 'Cash') {
+        const paidInput = form.querySelector('input[name="paid_amount"]');
+        if (paidInput) {
+            paidInput.value = total.toFixed(2);
+            paidInput.readOnly = true;
+        }
+    }
+}
+
+function openAddSaleModal(mode) {
+    const modalEl = document.getElementById('addSaleModal');
+    let modal = bootstrap.Modal.getInstance(modalEl);
+    if (!modal) {
+        modal = new bootstrap.Modal(modalEl);
+    }
+    
+    resetAddSaleForm();
+    
+    const catSelect = document.getElementById('saleCategory');
+    const modalTitle = document.getElementById('addSaleModalLabel');
+    const catDiv = document.getElementById('categorySelectDiv');
+    const paidInput = document.querySelector('#addSaleModal input[name="paid_amount"]');
+
+    if (catSelect) {
+        if (mode === 'Unbilled') {
+            catSelect.value = 'Cash';
+            modalTitle.innerText = "New Unbilled Sale (Cash)";
+            if (paidInput) paidInput.readOnly = true;
+            if (catDiv) catDiv.style.display = 'none';
+        } else {
+            // Billed
+            catSelect.value = 'Credit Customer'; // Default for billed
+            modalTitle.innerText = "New Billed Sale";
+            if (paidInput) paidInput.readOnly = false;
+            if (catDiv) catDiv.style.display = 'block';
+        }
+        catSelect.dispatchEvent(new Event('change'));
+    }
+    
+    updateClientInputVisibility(mode);
+    
+    modal.show();
+}
+
+function resetAddSaleForm() {
+    const form = document.querySelector('#addSaleModal form');
+    form.reset();
+
+    // Clear Client Search & Display
+    const clientCodeInput = document.getElementById('addSaleClientCode');
+    const clientNameHidden = document.getElementById('addSaleClientNameHidden');
+    const clientNameDisplay = document.getElementById('addSaleClientNameDisplay');
+    
+    if (clientCodeInput) clientCodeInput.value = '';
+    if (clientNameHidden) clientNameHidden.value = '';
+    if (clientNameDisplay) clientNameDisplay.innerText = '';
+
+    // Clear Booking Status
+    currentClientBookings = {};
+    const bookingContainer = document.getElementById('bookingStatusContainer');
+    if (bookingContainer) {
+        bookingContainer.innerHTML = '<p class="text-white-50 text-center mt-5">Select a client to see booked items</p>';
+    }
+
+    // Reset Items (Remove extra rows, reset first row)
+    const itemsContainer = document.getElementById('sale-items-container');
+    if (itemsContainer) {
+        while (itemsContainer.children.length > 1) {
+            itemsContainer.removeChild(itemsContainer.lastChild);
+        }
+        const firstRow = itemsContainer.firstElementChild;
+        if (firstRow) {
+            firstRow.querySelectorAll('input').forEach(i => {
+                if(i.classList.contains('qty-input')) i.value = '1.00';
+                else i.value = '';
+            });
+            firstRow.querySelectorAll('select').forEach(s => s.selectedIndex = 0);
+        }
+    }
+
+    // Trigger change events to restore UI state (Category visibility, Bill No readonly)
+    const hasBillCheck = document.getElementById('hasBillCheck');
+    if (hasBillCheck) hasBillCheck.dispatchEvent(new Event('change'));
 }
 
 document.addEventListener('DOMContentLoaded', function() {
@@ -435,23 +706,6 @@ document.addEventListener('DOMContentLoaded', function() {
         addHasBill.addEventListener('change', setAddState);
     }
 
-    // Toggle manual client name when category == Cash
-    const saleCategory = document.getElementById('saleCategory');
-    const manualClientGroup = document.getElementById('manualClientNameGroup');
-    const clientCodeInput = document.getElementById('addSaleClientCode');
-    if (saleCategory) {
-        const setCatState = () => {
-            if (saleCategory.value.toLowerCase() === 'cash') {
-                manualClientGroup.style.display = '';
-                if (clientCodeInput) clientCodeInput.removeAttribute('required');
-            } else {
-                manualClientGroup.style.display = 'none';
-                if (clientCodeInput) clientCodeInput.setAttribute('required', 'required');
-            }
-        }
-        setCatState();
-        saleCategory.addEventListener('change', setCatState);
-    }
     // Toggle manual bill for each Edit modal
     document.querySelectorAll('.edit-has-bill-checkbox').forEach(cb => {
         const targetId = cb.dataset.target;

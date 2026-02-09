@@ -69,6 +69,10 @@ def export_data(format):
     
     entries = query.order_by(Entry.date.desc(), Entry.time.desc()).all()
     
+    # Fetch all pending bills to map amounts and find orphans
+    all_bills = PendingBill.query.all()
+    bill_map = {b.bill_no: b for b in all_bills if b.bill_no}
+    
     if format == 'pdf':
         analysis = {}
         for m in Material.query.all():
@@ -86,6 +90,10 @@ def export_data(format):
 
     data = []
     for e in entries:
+        amount = 0
+        if e.bill_no and e.bill_no in bill_map:
+            amount = bill_map[e.bill_no].amount
+            
         data.append({
             'Date': e.date,
             'Time': e.time,
@@ -96,8 +104,36 @@ def export_data(format):
             'Quantity': e.qty,
             'bill_no': e.bill_no or '',
             'nimbus_no': e.nimbus_no or '',
-            'Captured By': e.created_by or 'System'
+            'Captured By': e.created_by or 'System',
+            'Amount': amount
         })
+        
+    # Add orphaned bills (Bills that exist in PendingBill but have no Entry)
+    # This ensures "Export = Import" preserves financial-only records
+    entry_bill_nos = set(e.bill_no for e in entries if e.bill_no)
+    
+    for b in all_bills:
+        if b.bill_no and b.bill_no not in entry_bill_nos:
+            # Apply filters to orphaned bills if possible
+            b_date = b.created_at[:10] if b.created_at and len(b.created_at) >= 10 else ''
+            if start_date and b_date < start_date: continue
+            if end_date and b_date > end_date: continue
+            if client_filter and b.client_name != client_filter: continue
+            
+            data.append({
+                'Date': b_date,
+                'Time': b.created_at[11:] if b.created_at and len(b.created_at) > 11 else '00:00:00',
+                'Type': 'OUT', # Default to OUT for sales bills
+                'Material': '', # No material for financial-only bill
+                'ClientName': b.client_name,
+                'ClientCode': b.client_code,
+                'Quantity': 0,
+                'bill_no': b.bill_no,
+                'nimbus_no': b.nimbus_no,
+                'Captured By': b.created_by or 'System',
+                'Amount': b.amount
+            })
+            
     df = pd.DataFrame(data)
     
     if format == 'excel':
@@ -150,24 +186,31 @@ def import_data_ajax():
 
         for i, row in df.iterrows():
             mat_name = str(row.get('Material', '')).strip()
-            if not mat_name or mat_name.lower() == 'nan':
+            bill_no = str(row.get('bill_no', row.get('Bill No', ''))).strip()
+            if pd.isna(row.get('bill_no')) and pd.isna(row.get('Bill No')):
+                bill_no = None
+            
+            # Allow import if material is missing BUT bill_no exists (Financial Record)
+            if (not mat_name or mat_name.lower() == 'nan') and not bill_no:
                 import_progress['current'] = i + 1
                 continue
             
             client_name = str(row.get('ClientName', '')).strip() if pd.notna(row.get('ClientName')) else None
             client_code = str(row.get('ClientCode', '')).strip() if pd.notna(row.get('ClientCode')) else None
             qty = float(row.get('Quantity', 0))
+            amount = float(row.get('Amount', 0)) if pd.notna(row.get('Amount')) else 0
             row_type = str(row.get('Type', 'IN')).strip().upper()
             
             if not row_type or row_type == 'NAN':
                 row_type = 'OUT' if client_name and client_name != '' else 'IN'
 
-            mat = Material.query.filter_by(name=mat_name).first()
-            if not mat:
-                mat_code = generate_material_code()
-                mat = Material(name=mat_name, code=mat_code)
-                db.session.add(mat)
-                db.session.flush()
+            if mat_name and mat_name.lower() != 'nan':
+                mat = Material.query.filter_by(name=mat_name).first()
+                if not mat:
+                    mat_code = generate_material_code()
+                    mat = Material(name=mat_name, code=mat_code)
+                    db.session.add(mat)
+                    db.session.flush()
 
             if client_name and client_name != '':
                 # Clean up name for comparison
@@ -198,7 +241,6 @@ def import_data_ajax():
                 row_time = now_time_str
             
             # Create/Update PendingBill for every entry with a bill_no
-            bill_no = str(row.get('bill_no', row.get('Bill No', ''))).strip() if pd.notna(row.get('bill_no')) or pd.notna(row.get('Bill No')) else None
             if bill_no and client_code:
                 existing_pb = PendingBill.query.filter_by(bill_no=bill_no, client_code=client_code).first()
                 if not existing_pb:
@@ -207,18 +249,22 @@ def import_data_ajax():
                         client_name=client_name,
                         bill_no=bill_no,
                         nimbus_no=str(row.get('nimbus_no', row.get('Nimbus No', ''))).strip() if pd.notna(row.get('nimbus_no')) or pd.notna(row.get('Nimbus No')) else None,
-                        amount=0, # Delivery entries don't always have amounts, will sync later
+                        amount=amount, 
                         reason="Auto-created from delivery",
                         created_at=row_date,
                         created_by=str(row.get('Captured By', current_user.username))
                     ))
+                elif amount > 0:
+                    # Update amount if provided in import
+                    existing_pb.amount = amount
 
             db.session.add(Entry(
                 date=row_date, time=row_time, type=row_type,
-                material=mat_name, client=client_name if client_name != '' else None,
+                material=mat_name if mat_name and mat_name.lower() != 'nan' else '', 
+                client=client_name if client_name != '' else None,
                 client_code=client_code if client_code != '' else None,
                 qty=qty, 
-                bill_no=str(row.get('bill_no', row.get('Bill No', ''))).strip() if pd.notna(row.get('bill_no')) or pd.notna(row.get('Bill No')) else None,
+                bill_no=bill_no,
                 nimbus_no=str(row.get('nimbus_no', row.get('Nimbus No', ''))).strip() if pd.notna(row.get('nimbus_no')) or pd.notna(row.get('Nimbus No')) else None,
                 created_by=str(row.get('Captured By', row.get('CapturedBy', current_user.username))).strip()
             ))
@@ -232,72 +278,6 @@ def import_data_ajax():
         return jsonify({'success': True, 'rows': len(df)})
     except Exception as e:
         import_progress['done'] = True
-        return jsonify({'success': False, 'error': str(e)})
-
-@import_export_bp.route('/process_jumble_import', methods=['POST'])
-@login_required
-def process_jumble_import():
-    data = request.json
-    rows = data.get('rows', [])
-    today_str = date.today().strftime('%Y-%m-%d')
-    now_time_str = datetime.now().strftime('%H:%M:%S')
-    
-    try:
-        for row in rows:
-            bill_no = str(row.get('bill_no', '')).strip()
-            client_name = str(row.get('client_name', '')).strip()
-            client_code = str(row.get('client_code', '')).strip()
-            mat_name = str(row.get('material_name', '')).strip()
-            qty_val = row.get('qty', 0)
-            qty = float(qty_val) if qty_val and str(qty_val).strip() != '' else 0
-            
-            # 1. Handle Client
-            existing_client = Client.query.filter(
-                (func.upper(Client.name) == client_name.upper()) | 
-                (Client.code == client_code)
-            ).first()
-            
-            if not existing_client:
-                if not client_code: client_code = generate_client_code()
-                existing_client = Client(name=client_name, code=client_code)
-                db.session.add(existing_client)
-                db.session.flush()
-            else:
-                client_code = existing_client.code
-
-            # 2. Handle Material
-            mat = Material.query.filter_by(name=mat_name).first()
-            if not mat:
-                mat = Material(name=mat_name, code=generate_material_code())
-                db.session.add(mat)
-                db.session.flush()
-
-            # 3. Handle Pending Bill
-            existing_pb = PendingBill.query.filter_by(bill_no=bill_no, client_code=client_code).first()
-            if not existing_pb:
-                db.session.add(PendingBill(
-                    client_code=client_code,
-                    client_name=client_name,
-                    bill_no=bill_no,
-                    amount=0,
-                    reason="Imported from Jumble",
-                    created_at=today_str,
-                    created_by=current_user.username
-                ))
-
-            # 4. Handle Dispatch (Entry)
-            db.session.add(Entry(
-                date=today_str, time=now_time_str, type='OUT',
-                material=mat_name, client=client_name,
-                client_code=client_code, qty=qty, 
-                bill_no=bill_no,
-                created_by=current_user.username
-            ))
-            
-        db.session.commit()
-        return jsonify({'success': True})
-    except Exception as e:
-        db.session.rollback()
         return jsonify({'success': False, 'error': str(e)})
 
 @import_export_bp.route('/import_pending_bills', methods=['POST'])

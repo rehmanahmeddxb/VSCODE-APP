@@ -51,10 +51,12 @@ class Entry(db.Model):
     client_category = db.Column(db.String(50))
     qty = db.Column(db.Float, default=0)
     bill_no = db.Column(db.String(50))
+    auto_bill_no = db.Column(db.String(50))
     nimbus_no = db.Column(db.String(50))
     invoice_id = db.Column(db.Integer, db.ForeignKey('invoice.id'), nullable=True)
     created_by = db.Column(db.String(80))
     created_at = db.Column(db.DateTime, default=datetime.now)
+    is_void = db.Column(db.Boolean, default=False)
 
 
 class PendingBill(db.Model):
@@ -71,6 +73,7 @@ class PendingBill(db.Model):
     is_manual = db.Column(db.Boolean, default=False)  # True if has manual bill no
     created_at = db.Column(db.String(50))
     created_by = db.Column(db.String(80))
+    is_void = db.Column(db.Boolean, default=False)
 
 
 class Booking(db.Model):
@@ -82,6 +85,7 @@ class Booking(db.Model):
     photo_path = db.Column(db.String(200))
     date_posted = db.Column(db.DateTime, default=datetime.now)
     items = db.relationship('BookingItem', backref='booking', lazy=True, cascade='all, delete-orphan')
+    is_void = db.Column(db.Boolean, default=False)
 
 
 class BookingItem(db.Model):
@@ -100,6 +104,7 @@ class Payment(db.Model):
     manual_bill_no = db.Column(db.String(50))
     photo_path = db.Column(db.String(200))
     date_posted = db.Column(db.DateTime, default=datetime.now)
+    is_void = db.Column(db.Boolean, default=False)
 
 
 class Invoice(db.Model):
@@ -115,6 +120,7 @@ class Invoice(db.Model):
     is_cash = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.String(50))
     created_by = db.Column(db.String(80))
+    is_void = db.Column(db.Boolean, default=False)
     
     # Relationships
     entries = db.relationship('Entry', backref='invoice', lazy=True)
@@ -133,10 +139,12 @@ class DirectSale(db.Model):
     amount = db.Column(db.Float, default=0)
     paid_amount = db.Column(db.Float, default=0)
     manual_bill_no = db.Column(db.String(50))
+    auto_bill_no = db.Column(db.String(50))
     photo_path = db.Column(db.String(200))
     invoice_id = db.Column(db.Integer, db.ForeignKey('invoice.id'), nullable=True)
     date_posted = db.Column(db.DateTime, default=datetime.now)
     items = db.relationship('DirectSaleItem', backref='direct_sale', lazy=True, cascade='all, delete-orphan')
+    is_void = db.Column(db.Boolean, default=False)
 
 
 class DirectSaleItem(db.Model):
@@ -152,9 +160,11 @@ class GRN(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     supplier = db.Column(db.String(100))
     manual_bill_no = db.Column(db.String(50))
+    auto_bill_no = db.Column(db.String(50))
     photo_path = db.Column(db.String(200))
     date_posted = db.Column(db.DateTime, default=datetime.now)
     items = db.relationship('GRNItem', backref='grn', lazy=True, cascade='all, delete-orphan')
+    is_void = db.Column(db.Boolean, default=False)
 
 
 class GRNItem(db.Model):
@@ -170,6 +180,7 @@ class Delivery(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     client_name = db.Column(db.String(100))
     manual_bill_no = db.Column(db.String(50))
+    auto_bill_no = db.Column(db.String(50))
     photo_path = db.Column(db.String(200))
     date_posted = db.Column(db.DateTime, default=datetime.now)
     items = db.relationship('DeliveryItem', backref='delivery', lazy=True, cascade='all, delete-orphan')
@@ -193,3 +204,4 @@ class Settings(db.Model):
     tax_rate = db.Column(db.Float, default=0)
     invoice_prefix = db.Column(db.String(10), default='INV-')
     bill_prefix = db.Column(db.String(10), default='#')
+    allow_global_negative_stock = db.Column(db.Boolean, default=False, nullable=False)

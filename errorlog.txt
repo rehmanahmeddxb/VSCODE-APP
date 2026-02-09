@@ -1,0 +1,258 @@
+2026-02-09 13:20:59,289 WARNING:  * Debugger is active!
+2026-02-09 13:20:59,294 INFO:  * Debugger PIN: 972-709-502
+2026-02-09 13:20:59,776 INFO: 127.0.0.1 - - [09/Feb/2026 13:20:59] "[32mGET /direct_sales HTTP/1.1[0m" 302 -
+2026-02-09 13:21:00,616 INFO: 127.0.0.1 - - [09/Feb/2026 13:21:00] "GET /login?next=/direct_sales HTTP/1.1" 200 -
+2026-02-09 13:21:07,781 INFO: 127.0.0.1 - - [09/Feb/2026 13:21:07] "GET /login?next=/direct_sales HTTP/1.1" 200 -
+2026-02-09 13:21:17,844 INFO: 127.0.0.1 - - [09/Feb/2026 13:21:17] "[32mPOST /login HTTP/1.1[0m" 302 -
+2026-02-09 13:21:18,401 INFO: 127.0.0.1 - - [09/Feb/2026 13:21:18] "GET / HTTP/1.1" 200 -
+2026-02-09 13:21:24,691 INFO: 127.0.0.1 - - [09/Feb/2026 13:21:24] "GET /direct_sales HTTP/1.1" 200 -
+2026-02-09 13:21:27,653 INFO: 127.0.0.1 - - [09/Feb/2026 13:21:27] "[32mPOST /void_transaction/DirectSale/7 HTTP/1.1[0m" 302 -
+2026-02-09 13:21:27,674 INFO: 127.0.0.1 - - [09/Feb/2026 13:21:27] "GET /direct_sales HTTP/1.1" 200 -
+2026-02-09 13:21:32,063 INFO: 127.0.0.1 - - [09/Feb/2026 13:21:32] "GET /api/client_booking_status/FBM-0001 HTTP/1.1" 200 -
+2026-02-09 13:22:15,649 ERROR: Direct Sale Error: Insufficient stock for PIONEER. Available: 0.0
+2026-02-09 13:22:15,650 INFO: 127.0.0.1 - - [09/Feb/2026 13:22:15] "[32mPOST /add_direct_sale HTTP/1.1[0m" 302 -
+2026-02-09 13:22:15,658 INFO: 127.0.0.1 - - [09/Feb/2026 13:22:15] "GET /direct_sales HTTP/1.1" 200 -
+2026-02-09 13:24:06,644 INFO: 127.0.0.1 - - [09/Feb/2026 13:24:06] "GET /api/client_booking_status/FBM-0001 HTTP/1.1" 200 -
+2026-02-09 13:24:27,779 ERROR: Direct Sale Error: Insufficient stock for PIONEER. Available: 0.0
+2026-02-09 13:24:27,780 INFO: 127.0.0.1 - - [09/Feb/2026 13:24:27] "[32mPOST /add_direct_sale HTTP/1.1[0m" 302 -
+2026-02-09 13:24:27,791 INFO: 127.0.0.1 - - [09/Feb/2026 13:24:27] "GET /direct_sales HTTP/1.1" 200 -
+2026-02-09 13:24:55,137 INFO: 127.0.0.1 - - [09/Feb/2026 13:24:55] "GET /clients HTTP/1.1" 200 -
+2026-02-09 13:24:57,105 INFO: 127.0.0.1 - - [09/Feb/2026 13:24:57] "GET /stock_summary HTTP/1.1" 200 -
+2026-02-09 13:24:58,207 INFO: 127.0.0.1 - - [09/Feb/2026 13:24:58] "GET /tracking HTTP/1.1" 200 -
+2026-02-09 13:24:59,107 INFO: 127.0.0.1 - - [09/Feb/2026 13:24:59] "GET /bookings HTTP/1.1" 200 -
+2026-02-09 13:25:00,063 INFO: 127.0.0.1 - - [09/Feb/2026 13:25:00] "GET /payments HTTP/1.1" 200 -
+2026-02-09 13:25:00,780 INFO: 127.0.0.1 - - [09/Feb/2026 13:25:00] "GET /direct_sales HTTP/1.1" 200 -
+2026-02-09 13:25:01,505 INFO: 127.0.0.1 - - [09/Feb/2026 13:25:01] "GET /clients HTTP/1.1" 200 -
+2026-02-09 13:25:03,000 INFO: 127.0.0.1 - - [09/Feb/2026 13:25:03] "GET /materials HTTP/1.1" 200 -
+2026-02-09 13:25:06,435 INFO: 127.0.0.1 - - [09/Feb/2026 13:25:06] "GET /grn HTTP/1.1" 200 -
+2026-02-09 13:25:07,132 INFO: 127.0.0.1 - - [09/Feb/2026 13:25:07] "GET /stock_summary HTTP/1.1" 200 -
+2026-02-09 13:25:08,048 INFO: 127.0.0.1 - - [09/Feb/2026 13:25:08] "[35m[1mGET /daily_transactions HTTP/1.1[0m" 500 -
+2026-02-09 13:25:08,829 INFO: 127.0.0.1 - - [09/Feb/2026 13:25:08] "GET /daily_transactions?__debugger__=yes&cmd=resource&f=style.css HTTP/1.1" 200 -
+2026-02-09 13:25:08,840 INFO: 127.0.0.1 - - [09/Feb/2026 13:25:08] "GET /daily_transactions?__debugger__=yes&cmd=resource&f=debugger.js HTTP/1.1" 200 -
+2026-02-09 13:25:09,143 INFO: 127.0.0.1 - - [09/Feb/2026 13:25:09] "GET /daily_transactions?__debugger__=yes&cmd=resource&f=console.png&s=lUXyXP5fkBYtZXYrLw87 HTTP/1.1" 200 -
+2026-02-09 13:25:14,952 INFO: 127.0.0.1 - - [09/Feb/2026 13:25:14] "[35m[1mGET /daily_transactions HTTP/1.1[0m" 500 -
+2026-02-09 13:25:14,995 INFO: 127.0.0.1 - - [09/Feb/2026 13:25:14] "[36mGET /daily_transactions?__debugger__=yes&cmd=resource&f=style.css HTTP/1.1[0m" 304 -
+2026-02-09 13:25:15,020 INFO: 127.0.0.1 - - [09/Feb/2026 13:25:15] "[36mGET /daily_transactions?__debugger__=yes&cmd=resource&f=debugger.js HTTP/1.1[0m" 304 -
+2026-02-09 13:25:15,042 INFO: 127.0.0.1 - - [09/Feb/2026 13:25:15] "[36mGET /daily_transactions?__debugger__=yes&cmd=resource&f=console.png&s=lUXyXP5fkBYtZXYrLw87 HTTP/1.1[0m" 304 -
+2026-02-09 13:27:29,570 INFO:  * Detected change in 'E:\\WORKINGS\\new\\fn1\\fnl1\\main.py', reloading
+2026-02-09 13:28:02,075 WARNING:  * Debugger is active!
+2026-02-09 13:28:02,092 INFO:  * Debugger PIN: 972-709-502
+2026-02-09 13:28:05,291 INFO: 127.0.0.1 - - [09/Feb/2026 13:28:05] "[32mGET /stock_summary HTTP/1.1[0m" 302 -
+2026-02-09 13:28:05,423 INFO: 127.0.0.1 - - [09/Feb/2026 13:28:05] "GET /login?next=/stock_summary HTTP/1.1" 200 -
+2026-02-09 13:28:07,422 INFO: 127.0.0.1 - - [09/Feb/2026 13:28:07] "[32mPOST /login HTTP/1.1[0m" 302 -
+2026-02-09 13:28:07,776 INFO: 127.0.0.1 - - [09/Feb/2026 13:28:07] "GET / HTTP/1.1" 200 -
+2026-02-09 13:28:11,825 INFO: 127.0.0.1 - - [09/Feb/2026 13:28:11] "GET /stock_summary HTTP/1.1" 200 -
+2026-02-09 13:28:13,092 INFO: 127.0.0.1 - - [09/Feb/2026 13:28:13] "[35m[1mGET /daily_transactions HTTP/1.1[0m" 500 -
+2026-02-09 13:28:13,320 INFO: 127.0.0.1 - - [09/Feb/2026 13:28:13] "[36mGET /daily_transactions?__debugger__=yes&cmd=resource&f=debugger.js HTTP/1.1[0m" 304 -
+2026-02-09 13:28:13,321 INFO: 127.0.0.1 - - [09/Feb/2026 13:28:13] "[36mGET /daily_transactions?__debugger__=yes&cmd=resource&f=style.css HTTP/1.1[0m" 304 -
+2026-02-09 13:28:13,388 INFO: 127.0.0.1 - - [09/Feb/2026 13:28:13] "GET /daily_transactions?__debugger__=yes&cmd=resource&f=console.png&s=JRwQtv0rqvCecCiPlQWN HTTP/1.1" 200 -
+2026-02-09 13:28:22,271 INFO: 127.0.0.1 - - [09/Feb/2026 13:28:22] "GET /direct_sales HTTP/1.1" 200 -
+2026-02-09 13:28:28,690 INFO: 127.0.0.1 - - [09/Feb/2026 13:28:28] "GET /api/client_booking_status/FBM-0001 HTTP/1.1" 200 -
+2026-02-09 13:30:41,911 INFO: 127.0.0.1 - - [09/Feb/2026 13:30:41] "GET /payments HTTP/1.1" 200 -
+2026-02-09 13:30:43,597 INFO: 127.0.0.1 - - [09/Feb/2026 13:30:43] "GET /direct_sales HTTP/1.1" 200 -
+2026-02-09 13:30:44,613 INFO: 127.0.0.1 - - [09/Feb/2026 13:30:44] "GET /clients HTTP/1.1" 200 -
+2026-02-09 13:30:46,153 INFO: 127.0.0.1 - - [09/Feb/2026 13:30:46] "GET /materials HTTP/1.1" 200 -
+2026-02-09 13:30:48,737 INFO: 127.0.0.1 - - [09/Feb/2026 13:30:48] "GET /settings HTTP/1.1" 200 -
+2026-02-09 13:31:01,321 INFO: 127.0.0.1 - - [09/Feb/2026 13:31:01] "[32mPOST /delete_selected_data HTTP/1.1[0m" 302 -
+2026-02-09 13:31:01,334 INFO: 127.0.0.1 - - [09/Feb/2026 13:31:01] "GET /settings HTTP/1.1" 200 -
+2026-02-09 13:34:50,635 INFO: 127.0.0.1 - - [09/Feb/2026 13:34:50] "GET /settings HTTP/1.1" 200 -
+2026-02-09 13:34:52,135 INFO: 127.0.0.1 - - [09/Feb/2026 13:34:52] "GET /settings HTTP/1.1" 200 -
+2026-02-09 13:34:53,111 INFO: 127.0.0.1 - - [09/Feb/2026 13:34:53] "GET /bookings HTTP/1.1" 200 -
+2026-02-09 13:34:54,293 INFO: 127.0.0.1 - - [09/Feb/2026 13:34:54] "GET /payments HTTP/1.1" 200 -
+2026-02-09 13:34:55,386 INFO: 127.0.0.1 - - [09/Feb/2026 13:34:55] "GET /grn HTTP/1.1" 200 -
+2026-02-09 13:34:57,120 INFO: 127.0.0.1 - - [09/Feb/2026 13:34:57] "[35m[1mGET /daily_transactions HTTP/1.1[0m" 500 -
+2026-02-09 13:34:57,147 INFO: 127.0.0.1 - - [09/Feb/2026 13:34:57] "[36mGET /daily_transactions?__debugger__=yes&cmd=resource&f=style.css HTTP/1.1[0m" 304 -
+2026-02-09 13:34:57,160 INFO: 127.0.0.1 - - [09/Feb/2026 13:34:57] "[36mGET /daily_transactions?__debugger__=yes&cmd=resource&f=debugger.js HTTP/1.1[0m" 304 -
+2026-02-09 13:34:57,178 INFO: 127.0.0.1 - - [09/Feb/2026 13:34:57] "[36mGET /daily_transactions?__debugger__=yes&cmd=resource&f=console.png&s=JRwQtv0rqvCecCiPlQWN HTTP/1.1[0m" 304 -
+2026-02-09 13:35:01,180 INFO: 127.0.0.1 - - [09/Feb/2026 13:35:01] "GET /materials HTTP/1.1" 200 -
+2026-02-09 13:35:05,971 INFO: 127.0.0.1 - - [09/Feb/2026 13:35:05] "[32mPOST /add_material HTTP/1.1[0m" 302 -
+2026-02-09 13:35:05,979 INFO: 127.0.0.1 - - [09/Feb/2026 13:35:05] "GET /materials HTTP/1.1" 200 -
+2026-02-09 13:35:10,997 INFO: 127.0.0.1 - - [09/Feb/2026 13:35:10] "[32mPOST /add_material HTTP/1.1[0m" 302 -
+2026-02-09 13:35:11,038 INFO: 127.0.0.1 - - [09/Feb/2026 13:35:11] "GET /materials HTTP/1.1" 200 -
+2026-02-09 13:35:16,472 INFO: 127.0.0.1 - - [09/Feb/2026 13:35:16] "[32mPOST /add_material HTTP/1.1[0m" 302 -
+2026-02-09 13:35:16,480 INFO: 127.0.0.1 - - [09/Feb/2026 13:35:16] "GET /materials HTTP/1.1" 200 -
+2026-02-09 13:35:23,356 INFO: 127.0.0.1 - - [09/Feb/2026 13:35:23] "GET /payments HTTP/1.1" 200 -
+2026-02-09 13:35:25,380 INFO: 127.0.0.1 - - [09/Feb/2026 13:35:25] "GET /direct_sales HTTP/1.1" 200 -
+2026-02-09 13:36:33,887 INFO: 127.0.0.1 - - [09/Feb/2026 13:36:33] "GET /clients HTTP/1.1" 200 -
+2026-02-09 13:36:43,182 INFO: 127.0.0.1 - - [09/Feb/2026 13:36:43] "[32mPOST /add_client HTTP/1.1[0m" 302 -
+2026-02-09 13:36:43,207 INFO: 127.0.0.1 - - [09/Feb/2026 13:36:43] "GET /clients HTTP/1.1" 200 -
+2026-02-09 13:36:51,511 INFO: 127.0.0.1 - - [09/Feb/2026 13:36:51] "GET /stock_summary HTTP/1.1" 200 -
+2026-02-09 13:36:52,519 INFO: 127.0.0.1 - - [09/Feb/2026 13:36:52] "GET /tracking HTTP/1.1" 200 -
+2026-02-09 13:36:53,408 INFO: 127.0.0.1 - - [09/Feb/2026 13:36:53] "GET /bookings HTTP/1.1" 200 -
+2026-02-09 13:36:54,003 INFO: 127.0.0.1 - - [09/Feb/2026 13:36:54] "GET /payments HTTP/1.1" 200 -
+2026-02-09 13:36:54,854 INFO: 127.0.0.1 - - [09/Feb/2026 13:36:54] "GET /direct_sales HTTP/1.1" 200 -
+2026-02-09 13:36:58,208 INFO: 127.0.0.1 - - [09/Feb/2026 13:36:58] "GET /bookings HTTP/1.1" 200 -
+2026-02-09 13:37:23,255 INFO: 127.0.0.1 - - [09/Feb/2026 13:37:23] "[32mPOST /add_booking HTTP/1.1[0m" 302 -
+2026-02-09 13:37:23,305 INFO: 127.0.0.1 - - [09/Feb/2026 13:37:23] "GET /bookings?download_bill=1 HTTP/1.1" 200 -
+2026-02-09 13:37:23,660 INFO: 127.0.0.1 - - [09/Feb/2026 13:37:23] "GET /download_invoice/1 HTTP/1.1" 200 -
+2026-02-09 13:37:25,592 INFO: 127.0.0.1 - - [09/Feb/2026 13:37:25] "GET /clients HTTP/1.1" 200 -
+2026-02-09 13:37:26,604 INFO: 127.0.0.1 - - [09/Feb/2026 13:37:26] "GET /ledger/1 HTTP/1.1" 200 -
+2026-02-09 13:37:30,418 INFO: 127.0.0.1 - - [09/Feb/2026 13:37:30] "GET /direct_sales HTTP/1.1" 200 -
+2026-02-09 13:38:00,943 INFO: 127.0.0.1 - - [09/Feb/2026 13:38:00] "GET /api/client_booking_status/FBM-0001 HTTP/1.1" 200 -
+2026-02-09 13:38:25,596 ERROR: Direct Sale Error: Insufficient stock for PIONEER. Available: 0.0
+2026-02-09 13:38:25,597 INFO: 127.0.0.1 - - [09/Feb/2026 13:38:25] "[32mPOST /add_direct_sale HTTP/1.1[0m" 302 -
+2026-02-09 13:38:25,607 INFO: 127.0.0.1 - - [09/Feb/2026 13:38:25] "GET /direct_sales HTTP/1.1" 200 -
+2026-02-09 13:41:57,414 INFO: 127.0.0.1 - - [09/Feb/2026 13:41:57] "GET /clients HTTP/1.1" 200 -
+2026-02-09 13:41:58,368 INFO: 127.0.0.1 - - [09/Feb/2026 13:41:58] "GET /ledger/1 HTTP/1.1" 200 -
+2026-02-09 13:48:16,359 INFO: 127.0.0.1 - - [09/Feb/2026 13:48:16] "GET /ledger/1 HTTP/1.1" 200 -
+2026-02-09 13:48:17,928 INFO: 127.0.0.1 - - [09/Feb/2026 13:48:17] "GET /ledger/1 HTTP/1.1" 200 -
+2026-02-09 13:48:18,561 INFO: 127.0.0.1 - - [09/Feb/2026 13:48:18] "GET /ledger/1 HTTP/1.1" 200 -
+2026-02-09 13:48:18,934 INFO: 127.0.0.1 - - [09/Feb/2026 13:48:18] "GET /ledger/1 HTTP/1.1" 200 -
+2026-02-09 13:48:19,115 INFO: 127.0.0.1 - - [09/Feb/2026 13:48:19] "GET /ledger/1 HTTP/1.1" 200 -
+2026-02-09 13:48:19,280 INFO: 127.0.0.1 - - [09/Feb/2026 13:48:19] "GET /ledger/1 HTTP/1.1" 200 -
+2026-02-09 13:48:19,438 INFO: 127.0.0.1 - - [09/Feb/2026 13:48:19] "GET /ledger/1 HTTP/1.1" 200 -
+2026-02-09 13:48:19,587 INFO: 127.0.0.1 - - [09/Feb/2026 13:48:19] "GET /ledger/1 HTTP/1.1" 200 -
+2026-02-09 13:48:19,790 INFO: 127.0.0.1 - - [09/Feb/2026 13:48:19] "GET /ledger/1 HTTP/1.1" 200 -
+2026-02-09 13:48:20,067 INFO: 127.0.0.1 - - [09/Feb/2026 13:48:20] "GET /ledger/1 HTTP/1.1" 200 -
+2026-02-09 13:48:20,255 INFO: 127.0.0.1 - - [09/Feb/2026 13:48:20] "GET /ledger/1 HTTP/1.1" 200 -
+2026-02-09 13:48:20,422 INFO: 127.0.0.1 - - [09/Feb/2026 13:48:20] "GET /ledger/1 HTTP/1.1" 200 -
+2026-02-09 13:48:20,584 INFO: 127.0.0.1 - - [09/Feb/2026 13:48:20] "GET /ledger/1 HTTP/1.1" 200 -
+2026-02-09 13:48:20,757 INFO: 127.0.0.1 - - [09/Feb/2026 13:48:20] "GET /ledger/1 HTTP/1.1" 200 -
+2026-02-09 13:50:56,284 INFO:  * Detected change in 'E:\\WORKINGS\\new\\fn1\\fnl1\\main.py', reloading
+2026-02-09 13:50:56,286 INFO:  * Detected change in 'E:\\WORKINGS\\new\\fn1\\fnl1\\main.py', reloading
+2026-02-09 13:51:21,912 WARNING:  * Debugger is active!
+2026-02-09 13:51:21,916 INFO:  * Debugger PIN: 972-709-502
+2026-02-09 13:53:06,084 INFO: 127.0.0.1 - - [09/Feb/2026 13:53:06] "[32mGET /ledger/1 HTTP/1.1[0m" 302 -
+2026-02-09 13:53:06,238 INFO: 127.0.0.1 - - [09/Feb/2026 13:53:06] "GET /login?next=/ledger/1 HTTP/1.1" 200 -
+2026-02-09 13:53:07,898 INFO: 127.0.0.1 - - [09/Feb/2026 13:53:07] "[32mPOST /login HTTP/1.1[0m" 302 -
+2026-02-09 13:53:08,049 INFO: 127.0.0.1 - - [09/Feb/2026 13:53:08] "GET / HTTP/1.1" 200 -
+2026-02-09 13:53:14,350 INFO: 127.0.0.1 - - [09/Feb/2026 13:53:14] "GET /clients HTTP/1.1" 200 -
+2026-02-09 13:53:15,760 INFO: 127.0.0.1 - - [09/Feb/2026 13:53:15] "GET /ledger/1 HTTP/1.1" 200 -
+2026-02-09 13:53:18,311 INFO: 127.0.0.1 - - [09/Feb/2026 13:53:18] "GET /direct_sales HTTP/1.1" 200 -
+2026-02-09 13:53:40,334 INFO: 127.0.0.1 - - [09/Feb/2026 13:53:40] "GET /api/client_booking_status/FBM-0001 HTTP/1.1" 200 -
+2026-02-09 13:54:12,033 ERROR: Direct Sale Error: Insufficient stock for PIONEER. Available: 0, Required: 1.0
+2026-02-09 13:54:12,034 INFO: 127.0.0.1 - - [09/Feb/2026 13:54:12] "[32mPOST /add_direct_sale HTTP/1.1[0m" 302 -
+2026-02-09 13:54:12,052 INFO: 127.0.0.1 - - [09/Feb/2026 13:54:12] "GET /direct_sales HTTP/1.1" 200 -
+2026-02-09 13:55:17,299 INFO: 127.0.0.1 - - [09/Feb/2026 13:55:17] "GET /api/client_booking_status/FBM-0001 HTTP/1.1" 200 -
+2026-02-09 13:55:30,053 ERROR: Direct Sale Error: Insufficient stock for PIONEER. Available: 0, Required: 1.0
+2026-02-09 13:55:30,054 INFO: 127.0.0.1 - - [09/Feb/2026 13:55:30] "[32mPOST /add_direct_sale HTTP/1.1[0m" 302 -
+2026-02-09 13:55:30,070 INFO: 127.0.0.1 - - [09/Feb/2026 13:55:30] "GET /direct_sales HTTP/1.1" 200 -
+2026-02-09 13:58:37,232 INFO:  * Detected change in 'E:\\WORKINGS\\new\\fn1\\fnl1\\main.py', reloading
+2026-02-09 13:58:37,233 INFO:  * Detected change in 'E:\\WORKINGS\\new\\fn1\\fnl1\\main.py', reloading
+2026-02-09 13:58:37,234 INFO:  * Detected change in 'E:\\WORKINGS\\new\\fn1\\fnl1\\main.py', reloading
+2026-02-09 13:58:45,690 WARNING:  * Debugger is active!
+2026-02-09 13:58:45,695 INFO:  * Debugger PIN: 972-709-502
+2026-02-09 13:58:56,683 INFO: 127.0.0.1 - - [09/Feb/2026 13:58:56] "[32mGET /direct_sales HTTP/1.1[0m" 302 -
+2026-02-09 13:58:56,740 INFO: 127.0.0.1 - - [09/Feb/2026 13:58:56] "GET /login?next=/direct_sales HTTP/1.1" 200 -
+2026-02-09 13:58:58,392 INFO: 127.0.0.1 - - [09/Feb/2026 13:58:58] "[32mPOST /login HTTP/1.1[0m" 302 -
+2026-02-09 13:58:58,489 INFO: 127.0.0.1 - - [09/Feb/2026 13:58:58] "GET / HTTP/1.1" 200 -
+2026-02-09 13:59:03,901 INFO: 127.0.0.1 - - [09/Feb/2026 13:59:03] "GET /clients HTTP/1.1" 200 -
+2026-02-09 13:59:10,151 INFO: 127.0.0.1 - - [09/Feb/2026 13:59:10] "GET /direct_sales HTTP/1.1" 200 -
+2026-02-09 13:59:15,191 INFO: 127.0.0.1 - - [09/Feb/2026 13:59:15] "GET /api/client_booking_status/FBM-0001 HTTP/1.1" 200 -
+2026-02-09 13:59:34,757 ERROR: Direct Sale Error: Insufficient stock for PIONEER. Available: 0, Required: 1.0
+2026-02-09 13:59:34,758 INFO: 127.0.0.1 - - [09/Feb/2026 13:59:34] "[32mPOST /add_direct_sale HTTP/1.1[0m" 302 -
+2026-02-09 13:59:34,772 INFO: 127.0.0.1 - - [09/Feb/2026 13:59:34] "GET /direct_sales HTTP/1.1" 200 -
+2026-02-09 14:03:14,436 INFO:  * Detected change in 'E:\\WORKINGS\\new\\fn1\\fnl1\\main.py', reloading
+2026-02-09 14:03:22,793 WARNING:  * Debugger is active!
+2026-02-09 14:03:22,799 INFO:  * Debugger PIN: 972-709-502
+2026-02-09 14:03:32,180 INFO: 127.0.0.1 - - [09/Feb/2026 14:03:32] "[32mGET /direct_sales HTTP/1.1[0m" 302 -
+2026-02-09 14:03:32,199 INFO: 127.0.0.1 - - [09/Feb/2026 14:03:32] "GET /login?next=/direct_sales HTTP/1.1" 200 -
+2026-02-09 14:03:34,138 INFO: 127.0.0.1 - - [09/Feb/2026 14:03:34] "[32mPOST /login HTTP/1.1[0m" 302 -
+2026-02-09 14:03:34,211 INFO: 127.0.0.1 - - [09/Feb/2026 14:03:34] "GET / HTTP/1.1" 200 -
+2026-02-09 14:03:38,230 INFO: 127.0.0.1 - - [09/Feb/2026 14:03:38] "GET /clients HTTP/1.1" 200 -
+2026-02-09 14:03:40,156 INFO: 127.0.0.1 - - [09/Feb/2026 14:03:40] "GET /ledger/1 HTTP/1.1" 200 -
+2026-02-09 14:03:44,290 INFO: 127.0.0.1 - - [09/Feb/2026 14:03:44] "GET /direct_sales HTTP/1.1" 200 -
+2026-02-09 14:03:48,470 INFO: 127.0.0.1 - - [09/Feb/2026 14:03:48] "GET /api/client_booking_status/FBM-0001 HTTP/1.1" 200 -
+2026-02-09 14:05:12,174 ERROR: Direct Sale Error: Insufficient stock for PIONEER. Available: 0, Required: 1.0 (Non-booked). Booked items bypass this check.
+2026-02-09 14:05:12,175 INFO: 127.0.0.1 - - [09/Feb/2026 14:05:12] "[32mPOST /add_direct_sale HTTP/1.1[0m" 302 -
+2026-02-09 14:05:12,191 INFO: 127.0.0.1 - - [09/Feb/2026 14:05:12] "GET /direct_sales HTTP/1.1" 200 -
+2026-02-09 14:07:21,868 INFO: 127.0.0.1 - - [09/Feb/2026 14:07:21] "GET /api/client_booking_status/FBM-0001 HTTP/1.1" 200 -
+2026-02-09 14:07:32,129 ERROR: Direct Sale Error: Insufficient stock for PIONEER. Available: 0, Required: 1.0 (Non-booked). Booked items bypass this check.
+2026-02-09 14:07:32,130 INFO: 127.0.0.1 - - [09/Feb/2026 14:07:32] "[32mPOST /add_direct_sale HTTP/1.1[0m" 302 -
+2026-02-09 14:07:32,144 INFO: 127.0.0.1 - - [09/Feb/2026 14:07:32] "GET /direct_sales HTTP/1.1" 200 -
+2026-02-09 14:07:48,892 INFO:  * Detected change in 'E:\\WORKINGS\\new\\fn1\\fnl1\\main.py', reloading
+2026-02-09 14:07:48,922 INFO:  * Detected change in 'E:\\WORKINGS\\new\\fn1\\fnl1\\main.py', reloading
+2026-02-09 14:07:55,623 WARNING:  * Debugger is active!
+2026-02-09 14:07:55,627 INFO:  * Debugger PIN: 972-709-502
+2026-02-09 14:07:55,686 INFO: 127.0.0.1 - - [09/Feb/2026 14:07:55] "[32mGET /direct_sales HTTP/1.1[0m" 302 -
+2026-02-09 14:07:55,703 INFO: 127.0.0.1 - - [09/Feb/2026 14:07:55] "GET /login?next=/direct_sales HTTP/1.1" 200 -
+2026-02-09 14:07:57,596 INFO: 127.0.0.1 - - [09/Feb/2026 14:07:57] "[32mPOST /login HTTP/1.1[0m" 302 -
+2026-02-09 14:07:57,667 INFO: 127.0.0.1 - - [09/Feb/2026 14:07:57] "GET / HTTP/1.1" 200 -
+2026-02-09 14:08:02,590 INFO: 127.0.0.1 - - [09/Feb/2026 14:08:02] "GET /direct_sales HTTP/1.1" 200 -
+2026-02-09 14:08:05,863 INFO: 127.0.0.1 - - [09/Feb/2026 14:08:05] "GET /api/client_booking_status/FBM-0001 HTTP/1.1" 200 -
+2026-02-09 14:08:18,581 ERROR: Direct Sale Error: Insufficient stock for PIONEER. Available: 0, Required: 3.0 (Non-booked). Booked items bypass this check.
+2026-02-09 14:08:18,582 INFO: 127.0.0.1 - - [09/Feb/2026 14:08:18] "[32mPOST /add_direct_sale HTTP/1.1[0m" 302 -
+2026-02-09 14:08:18,593 INFO: 127.0.0.1 - - [09/Feb/2026 14:08:18] "GET /direct_sales HTTP/1.1" 200 -
+2026-02-09 14:13:07,936 INFO:  * Detected change in 'E:\\WORKINGS\\new\\fn1\\fnl1\\main.py', reloading
+2026-02-09 14:13:15,341 WARNING:  * Debugger is active!
+2026-02-09 14:13:15,347 INFO:  * Debugger PIN: 972-709-502
+2026-02-09 14:14:36,365 INFO: 127.0.0.1 - - [09/Feb/2026 14:14:36] "[32mGET /direct_sales HTTP/1.1[0m" 302 -
+2026-02-09 14:14:36,378 INFO: 127.0.0.1 - - [09/Feb/2026 14:14:36] "GET /login?next=/direct_sales HTTP/1.1" 200 -
+2026-02-09 14:14:37,984 INFO: 127.0.0.1 - - [09/Feb/2026 14:14:37] "[32mPOST /login HTTP/1.1[0m" 302 -
+2026-02-09 14:14:38,057 INFO: 127.0.0.1 - - [09/Feb/2026 14:14:38] "GET / HTTP/1.1" 200 -
+2026-02-09 14:14:40,141 INFO: 127.0.0.1 - - [09/Feb/2026 14:14:40] "GET /direct_sales HTTP/1.1" 200 -
+2026-02-09 14:14:45,038 INFO: 127.0.0.1 - - [09/Feb/2026 14:14:45] "GET /api/client_booking_status/FBM-0001 HTTP/1.1" 200 -
+2026-02-09 14:15:47,211 INFO: 127.0.0.1 - - [09/Feb/2026 14:15:47] "GET /api/client_booking_status/FBM-0001 HTTP/1.1" 200 -
+2026-02-09 14:15:55,698 INFO: 127.0.0.1 - - [09/Feb/2026 14:15:55] "GET /payments HTTP/1.1" 200 -
+2026-02-09 14:15:56,749 INFO: 127.0.0.1 - - [09/Feb/2026 14:15:56] "GET /direct_sales HTTP/1.1" 200 -
+2026-02-09 14:16:06,658 INFO: 127.0.0.1 - - [09/Feb/2026 14:16:06] "GET /api/client_booking_status/FBM-0001 HTTP/1.1" 200 -
+2026-02-09 14:16:28,234 INFO: 127.0.0.1 - - [09/Feb/2026 14:16:28] "[32mPOST /add_direct_sale HTTP/1.1[0m" 302 -
+2026-02-09 14:16:28,264 INFO: 127.0.0.1 - - [09/Feb/2026 14:16:28] "GET /direct_sales?download_bill=2056 HTTP/1.1" 200 -
+2026-02-09 14:16:28,432 INFO: 127.0.0.1 - - [09/Feb/2026 14:16:28] "GET /download_invoice/2056 HTTP/1.1" 200 -
+2026-02-09 14:16:37,719 INFO: 127.0.0.1 - - [09/Feb/2026 14:16:37] "GET /clients HTTP/1.1" 200 -
+2026-02-09 14:16:38,644 INFO: 127.0.0.1 - - [09/Feb/2026 14:16:38] "GET /ledger/1 HTTP/1.1" 200 -
+2026-02-09 14:20:32,240 INFO:  * Detected change in 'E:\\WORKINGS\\new\\fn1\\fnl1\\main.py', reloading
+2026-02-09 14:20:39,560 WARNING:  * Debugger is active!
+2026-02-09 14:20:39,565 INFO:  * Debugger PIN: 972-709-502
+2026-02-09 14:21:00,470 INFO: 127.0.0.1 - - [09/Feb/2026 14:21:00] "[32mGET /ledger/1 HTTP/1.1[0m" 302 -
+2026-02-09 14:21:00,487 INFO: 127.0.0.1 - - [09/Feb/2026 14:21:00] "GET /login?next=/ledger/1 HTTP/1.1" 200 -
+2026-02-09 14:21:02,254 INFO: 127.0.0.1 - - [09/Feb/2026 14:21:02] "[32mPOST /login HTTP/1.1[0m" 302 -
+2026-02-09 14:21:02,344 INFO: 127.0.0.1 - - [09/Feb/2026 14:21:02] "GET / HTTP/1.1" 200 -
+2026-02-09 14:22:48,438 INFO: 127.0.0.1 - - [09/Feb/2026 14:22:48] "GET /direct_sales HTTP/1.1" 200 -
+2026-02-09 14:22:53,818 INFO: 127.0.0.1 - - [09/Feb/2026 14:22:53] "[32mPOST /void_transaction/DirectSale/1 HTTP/1.1[0m" 302 -
+2026-02-09 14:22:53,827 INFO: 127.0.0.1 - - [09/Feb/2026 14:22:53] "GET /direct_sales HTTP/1.1" 200 -
+2026-02-09 14:23:16,243 INFO: 127.0.0.1 - - [09/Feb/2026 14:23:16] "GET /api/client_booking_status/FBM-0001 HTTP/1.1" 200 -
+2026-02-09 14:23:30,277 ERROR: Direct Sale Error: 'Settings' object has no attribute 'allow_global_negative_stock'
+2026-02-09 14:23:30,278 INFO: 127.0.0.1 - - [09/Feb/2026 14:23:30] "[32mPOST /add_direct_sale HTTP/1.1[0m" 302 -
+2026-02-09 14:23:30,289 INFO: 127.0.0.1 - - [09/Feb/2026 14:23:30] "GET /direct_sales HTTP/1.1" 200 -
+2026-02-09 14:23:40,042 INFO: 127.0.0.1 - - [09/Feb/2026 14:23:40] "[33mGET /mixed_transactions HTTP/1.1[0m" 404 -
+2026-02-09 14:23:45,333 INFO: 127.0.0.1 - - [09/Feb/2026 14:23:45] "GET /api/client_booking_status/FBM-0001 HTTP/1.1" 200 -
+2026-02-09 14:24:00,707 ERROR: Direct Sale Error: 'Settings' object has no attribute 'allow_global_negative_stock'
+2026-02-09 14:24:00,708 INFO: 127.0.0.1 - - [09/Feb/2026 14:24:00] "[32mPOST /add_direct_sale HTTP/1.1[0m" 302 -
+2026-02-09 14:24:00,722 INFO: 127.0.0.1 - - [09/Feb/2026 14:24:00] "GET /direct_sales HTTP/1.1" 200 -
+2026-02-09 14:24:55,001 INFO: 127.0.0.1 - - [09/Feb/2026 14:24:55] "GET /unpaid_transactions HTTP/1.1" 200 -
+2026-02-09 14:25:00,657 INFO: 127.0.0.1 - - [09/Feb/2026 14:25:00] "[32mPOST /add_payment HTTP/1.1[0m" 302 -
+2026-02-09 14:25:00,749 INFO: 127.0.0.1 - - [09/Feb/2026 14:25:00] "GET /payments?download_bill=1 HTTP/1.1" 200 -
+2026-02-09 14:25:00,920 INFO: 127.0.0.1 - - [09/Feb/2026 14:25:00] "GET /download_invoice/1 HTTP/1.1" 200 -
+2026-02-09 14:25:03,599 INFO: 127.0.0.1 - - [09/Feb/2026 14:25:03] "GET /clients HTTP/1.1" 200 -
+2026-02-09 14:25:04,429 INFO: 127.0.0.1 - - [09/Feb/2026 14:25:04] "GET /ledger/1 HTTP/1.1" 200 -
+2026-02-09 14:25:08,268 INFO: 127.0.0.1 - - [09/Feb/2026 14:25:08] "GET /payments HTTP/1.1" 200 -
+2026-02-09 14:25:15,408 INFO:  * Detected change in 'E:\\WORKINGS\\new\\fn1\\fnl1\\models.py', reloading
+2026-02-09 14:25:21,849 WARNING:  * Debugger is active!
+2026-02-09 14:25:21,854 INFO:  * Debugger PIN: 972-709-502
+2026-02-09 14:25:21,926 INFO: 127.0.0.1 - - [09/Feb/2026 14:25:21] "[32mPOST /edit_bill/Payment/1 HTTP/1.1[0m" 302 -
+2026-02-09 14:25:21,946 INFO: 127.0.0.1 - - [09/Feb/2026 14:25:21] "GET /login?next=/edit_bill/Payment/1 HTTP/1.1" 200 -
+2026-02-09 14:25:24,216 INFO: 127.0.0.1 - - [09/Feb/2026 14:25:24] "[32mPOST /login HTTP/1.1[0m" 302 -
+2026-02-09 14:25:24,436 INFO: 127.0.0.1 - - [09/Feb/2026 14:25:24] "GET / HTTP/1.1" 200 -
+2026-02-09 14:25:35,607 INFO: 127.0.0.1 - - [09/Feb/2026 14:25:35] "GET /unpaid_transactions HTTP/1.1" 200 -
+2026-02-09 14:25:41,216 INFO: 127.0.0.1 - - [09/Feb/2026 14:25:41] "GET /unpaid_transactions?status=all&start_date=&end_date=&material=&bill_no= HTTP/1.1" 200 -
+2026-02-09 14:25:49,048 INFO: 127.0.0.1 - - [09/Feb/2026 14:25:49] "GET /import_export HTTP/1.1" 200 -
+2026-02-09 14:25:58,505 INFO:  * Detected change in 'E:\\WORKINGS\\new\\fn1\\fnl1\\models.py', reloading
+2026-02-09 14:25:58,506 INFO:  * Detected change in 'E:\\WORKINGS\\new\\fn1\\fnl1\\models.py', reloading
+2026-02-09 14:25:58,507 INFO:  * Detected change in 'E:\\WORKINGS\\new\\fn1\\fnl1\\models.py', reloading
+2026-02-09 14:26:03,773 WARNING:  * Debugger is active!
+2026-02-09 14:26:03,777 INFO:  * Debugger PIN: 972-709-502
+2026-02-09 14:26:13,091 INFO: 127.0.0.1 - - [09/Feb/2026 14:26:13] "[32mGET /payments HTTP/1.1[0m" 302 -
+2026-02-09 14:26:13,114 INFO: 127.0.0.1 - - [09/Feb/2026 14:26:13] "GET /login?next=/payments HTTP/1.1" 200 -
+2026-02-09 14:26:14,772 INFO: 127.0.0.1 - - [09/Feb/2026 14:26:14] "[32mPOST /login HTTP/1.1[0m" 302 -
+2026-02-09 14:26:14,839 INFO: 127.0.0.1 - - [09/Feb/2026 14:26:14] "GET / HTTP/1.1" 200 -
+2026-02-09 14:26:18,798 INFO: 127.0.0.1 - - [09/Feb/2026 14:26:18] "GET /payments HTTP/1.1" 200 -
+2026-02-09 14:26:29,653 INFO: 127.0.0.1 - - [09/Feb/2026 14:26:29] "[32mPOST /edit_bill/Payment/1 HTTP/1.1[0m" 302 -
+2026-02-09 14:26:29,670 INFO: 127.0.0.1 - - [09/Feb/2026 14:26:29] "GET /payments?download_bill=1 HTTP/1.1" 200 -
+2026-02-09 14:26:29,810 INFO: 127.0.0.1 - - [09/Feb/2026 14:26:29] "GET /download_invoice/1 HTTP/1.1" 200 -
+2026-02-09 14:26:33,742 INFO: 127.0.0.1 - - [09/Feb/2026 14:26:33] "GET /clients HTTP/1.1" 200 -
+2026-02-09 14:26:34,695 INFO: 127.0.0.1 - - [09/Feb/2026 14:26:34] "GET /ledger/1 HTTP/1.1" 200 -
+2026-02-09 14:26:42,499 INFO: 127.0.0.1 - - [09/Feb/2026 14:26:42] "GET /unpaid_transactions HTTP/1.1" 200 -
+2026-02-09 14:26:44,891 INFO: 127.0.0.1 - - [09/Feb/2026 14:26:44] "GET /unpaid_transactions?status=unpaid&start_date=&end_date=&material=&bill_no= HTTP/1.1" 200 -
+2026-02-09 14:27:39,096 INFO: 127.0.0.1 - - [09/Feb/2026 14:27:39] "GET /clients HTTP/1.1" 200 -
+2026-02-09 14:27:42,305 INFO: 127.0.0.1 - - [09/Feb/2026 14:27:42] "GET /payments HTTP/1.1" 200 -
+2026-02-09 14:27:44,867 INFO: 127.0.0.1 - - [09/Feb/2026 14:27:44] "GET /direct_sales HTTP/1.1" 200 -
+2026-02-09 14:27:48,220 INFO: 127.0.0.1 - - [09/Feb/2026 14:27:48] "GET /api/client_booking_status/FBM-0001 HTTP/1.1" 200 -
+2026-02-09 14:28:04,843 INFO: 127.0.0.1 - - [09/Feb/2026 14:28:04] "[32mPOST /add_direct_sale HTTP/1.1[0m" 302 -
+2026-02-09 14:28:04,862 INFO: 127.0.0.1 - - [09/Feb/2026 14:28:04] "GET /direct_sales?download_bill=1 HTTP/1.1" 200 -
+2026-02-09 14:28:04,970 INFO: 127.0.0.1 - - [09/Feb/2026 14:28:04] "GET /download_invoice/1 HTTP/1.1" 200 -
+2026-02-09 14:28:09,852 INFO: 127.0.0.1 - - [09/Feb/2026 14:28:09] "GET /clients HTTP/1.1" 200 -
+2026-02-09 14:28:10,785 INFO: 127.0.0.1 - - [09/Feb/2026 14:28:10] "GET /ledger/1 HTTP/1.1" 200 -
+2026-02-09 14:28:34,202 INFO: 127.0.0.1 - - [09/Feb/2026 14:28:34] "GET /pending_bills HTTP/1.1" 200 -
+2026-02-09 14:39:12,260 INFO:  * Detected change in 'E:\\WORKINGS\\new\\fn1\\fnl1\\blueprints\\import_export.py', reloading
+2026-02-09 14:39:12,298 INFO:  * Detected change in 'E:\\WORKINGS\\new\\fn1\\fnl1\\blueprints\\inventory.py', reloading

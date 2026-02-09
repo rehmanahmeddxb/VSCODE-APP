@@ -1,8 +1,8 @@
 {% extends "layout.html" %}
 {% block content %}
 <div class="mb-4">
-    <h2 class="fw-bold text-info"><i class="bi bi-dash-circle me-2"></i>Stock Dispatch</h2>
-    <p class="text-white-50">Log material leaving the warehouse for clients.</p>
+    <h2 class="fw-bold text-info"><i class="bi bi-truck me-2"></i>Booking Delivery (Dispatch)</h2>
+    <p class="text-white-50">Dispatch stock against existing client bookings.</p>
 </div>
 
 <div class="row justify-content-center">
@@ -91,9 +91,10 @@
                         </div>
                     </div>
 
-                    <button type="submit" class="btn btn-info text-dark w-100 py-3 rounded-pill fw-bold shadow">
-                        <i class="bi bi-send-check me-2"></i> Confirm Dispatch
-                    </button>
+                    <div class="d-flex gap-2">
+                        <button type="reset" class="btn btn-outline-secondary w-50 py-3 rounded-pill fw-bold">Reset</button>
+                        <button type="submit" class="btn btn-info text-dark w-50 py-3 rounded-pill fw-bold shadow"><i class="bi bi-send-check me-2"></i> Confirm</button>
+                    </div>
                     <a href="/" class="btn btn-link w-100 text-white-50 text-decoration-none mt-2 small">Cancel and Return</a>
                 </form>
             </div>

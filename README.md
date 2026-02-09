@@ -1,468 +1,591 @@
-# 🏭 Ahmed Cement - Integrated CRM & Inventory System v2.0
+# 📘 COMPLETE APPLICATION BLUEPRINT
+## Ahmed Cement Inventory Management System
+### Full Functional Documentation - Every Page, Every Button, Every Flow
 
-## 🌟 Overview
-**Ahmed Cement Inventory Pro** is a comprehensive, professional-grade Sales & Inventory Management System that combines the best features of both original applications with an enhanced dark-theme UI for optimal user experience.
+**Version:** 3.0
+**Date:** February 3, 2026
+**Total Pages:** 23
+**Total Functions:** 67
+**Total User Flows:** 45
 
----
+================================================================================
+## TABLE OF CONTENTS
+================================================================================
 
-## ✨ Key Features
+1. **SECTION 1: SYSTEM OVERVIEW**
+2. **SECTION 2: USER ROLES & PERMISSIONS**
+3. **SECTION 3: NAVIGATION STRUCTURE**
+4. **SECTION 4: PAGE-BY-PAGE DETAILED DOCUMENTATION**
+5. **SECTION 5: COMPLETE USER WORKFLOWS**
+6. **SECTION 6: DATA FLOW DIAGRAMS**
+7. **SECTION 7: BUTTON & FUNCTION REFERENCE**
+8. **SECTION 8: REPORTING & ANALYTICS**
+9. **SECTION 9: TROUBLESHOOTING GUIDE**
 
-### 🔐 **Advanced Security**
-- User authentication with role-based access control
-- Password hashing and secure sessions
-- Granular permissions (view stock, daily transactions, history, import/export, directory management)
 
-### 📦 **Complete Inventory Management**
-- **GRN (Goods Receipt Note)** - Track incoming materials with supplier details
-- **Material Management** - Auto-generated codes (tmpm-00001 format)
-- **Real-time Stock Tracking** - Automatic updates on IN/OUT transactions
-- **Deliveries** - Complete delivery management with automatic stock reduction
-- **Material Ledger** - Complete transaction history per material
+================================================================================
+## SECTION 1: SYSTEM OVERVIEW
+================================================================================
 
-### 💼 **Comprehensive Sales System**
-- **Bookings** - Multi-item bookings with client tracking
-- **Direct Sales** - Quick sales entry with categorization
-- **Payments** - Payment tracking with multiple methods
-- **Invoicing** - Advanced invoice system with status tracking
-- **Pending Bills** - Track unpaid bills and reasons
-- **Client Ledger** - Complete client transaction history
+### 1.1 SYSTEM PURPOSE
+The Ahmed Cement Inventory Management System is designed to manage:
+- Material stock (cement brands)
+- Client bookings and orders
+- Dispatching and deliveries
+- Financial tracking (bills, payments)
+- Inventory movements (IN/OUT)
+- Client accounts and ledgers
 
-### 👥 **Client Management**
-- Auto-generated client codes (tmpc-000001 format)
-- Client categories (General, Walking-Customer, Misc)
-- Contact information and addresses
-- Transaction history and balance tracking
-- Client transfer functionality
+### 1.2 CORE MODULES
+1. **Inventory Management**
+   - Goods Receipt Notes (GRN) - Receiving stock
+   - Material tracking
+   - Stock summary and reports
 
-### 📊 **Reporting & Analytics**
-- **Dashboard** - Real-time overview with key metrics
-- **Stock Summary** - Current inventory levels
-- **Daily Breakdown** - Today's IN/OUT transactions
-- **Transaction History** - Complete audit trail with filters
-- **Unpaid Transactions** - Track receivables
-- **PDF Reports** - Professional PDF generation
+2. **Sales & Bookings**
+   - Client bookings (advance orders)
+   - Direct sales (immediate sales)
+   - Dispatching (delivery)
 
-### 🔄 **Data Management**
-- **Import/Export** - Bulk data operations
-- **Database Backup** - Easy backup and restore
-- **Settings** - Company settings, currency, permissions
+3. **Financial Management**
+   - Pending bills (accounts receivable)
+   - Payments received
+   - Client ledgers
+   - Financial reports
 
-### 🎨 **Modern UI/UX**
-- **Dark Theme** - Professional dark blue/gold color scheme
-- **Responsive Design** - Works on desktop, tablet, and mobile
-- **Sidebar Navigation** - Collapsible sidebar with icons
-- **Modal Forms** - Clean modal dialogs for data entry
-- **Loading Indicators** - Visual feedback for operations
-- **Flash Messages** - User-friendly success/error notifications
+4. **Client Management**
+   - Client directory
+   - Client categories
+   - Client ledgers
 
----
+5. **Administration**
+   - User management
+   - Settings
+   - Data cleanup
 
-## 🚀 Installation
 
-### Prerequisites
-- Python 3.10 or higher
-- pip (Python package installer)
+================================================================================
+## SECTION 2: USER ROLES & PERMISSIONS
+================================================================================
 
-### Step 1: Extract Files
-```bash
-unzip ahmed_cement_final.zip
-cd ahmed_cement_final
+### 2.1 ADMIN ROLE
+**Permissions:**
+✓ View all pages
+✓ Create, edit, delete all records
+✓ Add/edit/delete users
+✓ Access settings
+✓ Import/export data
+✓ Delete historical data
+✓ Back-date entries
+✓ Manage client directory
+
+### 2.2 USER ROLE (Standard)
+**Permissions:**
+✓ View stock summary (if enabled)
+✓ View daily transactions (if enabled)
+✓ View history (if enabled)
+✗ Cannot back-date entries
+✗ Cannot delete old records
+✗ Cannot access settings
+✗ Cannot import/export (unless enabled)
+✗ Cannot manage directory (unless enabled)
+
+
+================================================================================
+## SECTION 3: NAVIGATION STRUCTURE
+================================================================================
+
+### 3.1 MAIN NAVIGATION MENU
+```text
+┌─────────────────────────────────────────────────────────────────────────┐
+│  Logo: Ahmed Cement    [Dashboard] [Inventory] [Sales] [Finance] [More] │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
-### Step 2: Install Dependencies
-```bash
-# Recommended: Create virtual environment
-python -m venv venv
+**TOP MENU BAR:**
+1. Dashboard (Home)
+2. Stock Summary
+3. Daily Transactions
+4. Clients
+5. Materials
+6. Bookings
+7. Direct Sales
+8. Dispatching
+9. Pending Bills
+10. Payments
+11. Tracking
+12. Settings
+13. Logout
 
-# Activate virtual environment
-# Windows:
-venv\Scripts\activate
-# Linux/Mac:
-source venv/bin/activate
+**DROPDOWN MENUS:**
 
-# Install requirements
-pip install -r requirements.txt
+**📦 Inventory Menu:**
+  - Receiving (GRN)
+  - Stock Summary
+  - Daily Transactions
+  - Material Ledger
+  - Tracking
+
+**💰 Sales Menu:**
+  - Bookings
+  - Direct Sales
+  - Dispatching
+
+**💵 Finance Menu:**
+  - Pending Bills (Manual)
+  - Pending Bills (Automatic)
+  - Payments
+  - Unpaid Transactions
+
+**👥 Clients Menu:**
+  - Client Directory
+  - Client Ledger
+
+**⚙️ Settings Menu:**
+  - User Management
+  - System Settings
+  - Import/Export
+  - Data Cleanup
+
+
+================================================================================
+## SECTION 4: PAGE-BY-PAGE DETAILED DOCUMENTATION
+================================================================================
+
+### PAGE 1: DASHBOARD (Landing Page)
+
+**URL:** /
+**Access:** All logged-in users
+
+**LAYOUT:**
+```text
+┌──────────────────────────────────────────────────────────────────────┐
+│ HEADER: Ahmed Cement Inventory System                                │
+│ DATE: February 03, 2026                                              │
+├──────────────────────────────────────────────────────────────────────┤
+│                                                                       │
+│ ┌────────────┐  ┌────────────┐  ┌────────────┐  ┌────────────┐    │
+│ │ TOTAL      │  │ CLIENTS    │  │ UNPAID     │  │ TOTAL      │    │
+│ │ STOCK      │  │ COUNT      │  │ BILLS      │  │ CREDIT     │    │
+│ │ 1,250 bags │  │ 45         │  │ Rs 250,000 │  │ Rs 350,000 │    │
+│ └────────────┘  └────────────┘  └────────────┘  └────────────┘    │
+│                                                                       │
+├──────────────────────────────────────────────────────────────────────┤
+│ STOCK SUMMARY TABLE:                                                 │
+│                                                                       │
+│ Material Name    │ Received │ Dispatched │ Available Stock           │
+│ ────────────────┼──────────┼────────────┼─────────────              │
+│ DG Cement        │ 500      │ 350        │ 150                       │
+│ Askari Cement    │ 300      │ 200        │ 100                       │
+│ Lucky Cement     │ 450      │ 250        │ 200                       │
+│                                                                       │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
-### Step 3: Run Application
-```bash
-python main.py
+**COMPONENTS:**
+
+1. **Statistics Cards (Top Row)**
+   - **Card 1: Total Stock**
+     - Shows: Sum of all available stock
+     - Calculation: (Total IN - Total OUT)
+     - Updates: Real-time on any stock movement
+     - Click: Goes to Stock Summary page
+   - **Card 2: Client Count**
+     - Shows: Number of active clients
+     - Calculation: COUNT(clients WHERE is_active=true)
+     - Updates: When client added/deactivated
+     - Click: Goes to Clients page
+   - **Card 3: Unpaid Bills**
+     - Shows: Total pending amount
+     - Calculation: SUM(pending_bills WHERE is_paid=false)
+     - Updates: When bill paid or new bill added
+     - Click: Goes to Pending Bills page
+   - **Card 4: Total Credit**
+     - Shows: Total credit amount
+     - Calculation: SUM(pending_bills WHERE is_paid=false)
+     - Updates: Real-time
+     - Click: Goes to Financial Reports
+
+2. **Stock Summary Table**
+   - **Columns:**
+     - Material Name: Cement brand/type
+     - Received: Total IN quantity
+     - Dispatched: Total OUT quantity
+     - Available Stock: IN - OUT
+   - **Actions:**
+     - Click material name → Goes to Material Ledger
+     - Hover → Shows tooltip with more details
+   - **Sorting:**
+     - Alphabetical by material name
+     - Can click column headers to sort
+
+**HOW TO USE:**
+1. Login to system (see Page 23: Login)
+2. Dashboard automatically opens
+3. View quick statistics in top cards
+4. Scroll down to see material-wise stock
+5. Click any statistic card to drill down
+6. Click material name to see detailed ledger
+
+
+### PAGE 2: STOCK SUMMARY
+
+**URL:** /stock_summary
+**Access:** Users with can_view_stock permission
+
+**LAYOUT:**
+```text
+┌──────────────────────────────────────────────────────────────────────┐
+│ STOCK SUMMARY                                          [Export Excel] │
+├──────────────────────────────────────────────────────────────────────┤
+│ Filter: [All Materials ▼] [Date From:____] [Date To:____] [Apply]   │
+├──────────────────────────────────────────────────────────────────────┤
+│                                                                       │
+│ Material          Opening  Received  Dispatched  Closing  Status     │
+│ ────────────────  ───────  ────────  ──────────  ───────  ──────    │
+│ DG Cement         100      150       120         130      ✓ OK       │
+│ Askari Cement     50       100       80          70       ⚠ LOW      │
+│ Lucky Cement      0        200       180         20       ⚠ LOW      │
+│                                                                       │
+│ ─────────────────────────────────────────────────────────────────── │
+│ TOTALS:           150      450       380         220                 │
+│                                                                       │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
-The application will start on **http://localhost:5000**
+**FILTERS:**
+1. **Material Filter**
+   - Dropdown: Shows all materials + "All Materials" option
+   - Default: All Materials
+   - Effect: Shows only selected material when applied
+2. **Date From**
+   - Date picker
+   - Default: Beginning of current month
+   - Effect: Opening stock calculated from this date
+3. **Date To**
+   - Date picker
+   - Default: Today
+   - Effect: Closing stock calculated up to this date
+4. **Apply Button**
+   - Click to apply filters
+   - Reloads table with filtered data
 
-### Step 4: Login
-Default credentials:
-- **Username:** `admin`
-- **Password:** `admin123`
+**ACTIONS:**
+1. **Export Excel**
+   - Generates Excel file with current view
+   - Filename: stock_summary_YYYY-MM-DD.xlsx
+   - Includes: All columns and totals
+2. **Click Material Name**
+   - Opens Material Ledger for that material
+   - Shows all IN/OUT transactions
+3. **Status Indicators**
+   - ✓ OK: Stock > 50 bags (Green)
+   - ⚠ LOW: Stock 10-50 bags (Yellow)
+   - ✗ CRITICAL: Stock < 10 bags (Red)
 
-⚠️ **IMPORTANT:** Change the default password immediately after first login!
+**HOW TO USE:**
+- **SCENARIO 1: Check current stock levels**
+  - Click "Stock Summary" in menu -> View Closing column -> Check Status column
+- **SCENARIO 2: Check stock for specific material**
+  - Open Stock Summary -> Select material -> Click "Apply" -> View detailed numbers
+- **SCENARIO 3: Export stock report for accounting**
+  - Set date range -> Click "Apply" -> Click "Export Excel" -> Save file
 
----
 
-## 📱 Quick Start Guide
+### PAGE 3: DAILY TRANSACTIONS
 
-### First Time Setup
+**URL:** /daily_transactions
+**Access:** Users with can_view_daily permission
 
-1. **Login** with default credentials
-2. **Change Password** (Settings → Change Password)
-3. **Add Materials** (Material Brands → Add Material)
-   - System will auto-generate material codes (tmpm-00001, tmpm-00002, etc.)
-4. **Add Clients** (Client Ledger → Add Client)
-   - System will auto-generate client codes (tmpc-000001, tmpc-000002, etc.)
-5. **Configure Settings** (Settings → Company Info)
-
-### Daily Operations
-
-#### Receiving Materials (GRN)
-```
-Navigation: Inventory → GRN (Receiving)
-1. Click "+ Add GRN"
-2. Enter supplier name
-3. Add materials with quantities and prices
-4. Upload bill photo (optional)
-5. Submit
-✅ Stock automatically increases
-```
-
-#### Recording Deliveries
-```
-Navigation: Inventory → Deliveries
-1. Click "+ Add Delivery"
-2. Enter client name
-3. Add products with quantities
-4. Upload delivery proof (optional)
-5. Submit
-✅ Stock automatically decreases
-```
-
-#### Creating Bookings
-```
-Navigation: History → Bookings
-1. Click "+ Create Booking"
-2. Enter client and location
-3. Add items with quantities and prices
-4. Enter amount and payment
-5. Submit
-```
-
-#### Recording Payments
-```
-Navigation: History → Payments
-1. Click "+ Record Payment"
-2. Select client
-3. Enter amount and method
-4. Upload receipt (optional)
-5. Submit
-```
-
-#### Direct Sales
-```
-Navigation: History → Direct Sales
-1. Click "+ Add Sale"
-2. Enter client name
-3. Add items with quantities and prices
-4. Enter payment details
-5. Submit
+**LAYOUT:**
+```text
+┌──────────────────────────────────────────────────────────────────────┐
+│ DAILY TRANSACTIONS                                                    │
+├──────────────────────────────────────────────────────────────────────┤
+│ Select Date: [2026-02-03 ▼]                        [Print Report]    │
+├──────────────────────────────────────────────────────────────────────┤
+│                                                                       │
+│ SUMMARY FOR: February 03, 2026                                       │
+│                                                                       │
+│ Opening Stock:    1,000 bags                                         │
+│ Received Today:     150 bags  (+)                                    │
+│ Dispatched Today:   120 bags  (-)                                    │
+│ Closing Stock:    1,030 bags                                         │
+│                                                                       │
+├──────────────────────────────────────────────────────────────────────┤
+│ DETAILED TRANSACTIONS:                                                │
+│                                                                       │
+│ Time  │ Type │ Material      │ Client          │ Qty │ Bill No       │
+│ ──────┼──────┼───────────────┼─────────────────┼─────┼──────────    │
+│ 09:30 │ IN   │ DG Cement     │ Supplier A      │ 100 │ GRN-001       │
+│ 10:15 │ OUT  │ DG Cement     │ Zafar Builders  │ 50  │ #1001         │
+│ 11:00 │ IN   │ Askari Cement │ Supplier B      │ 50  │ GRN-002       │
+│ 14:30 │ OUT  │ Askari Cement │ Khan Traders    │ 30  │ 12345         │
+│ 16:00 │ OUT  │ Lucky Cement  │ Ahmed Const.    │ 40  │ #1002         │
+│                                                                       │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
----
+**COMPONENTS:**
+1. **Date Selector**
+   - Calendar dropdown
+   - Shows dates with transactions in bold
+   - Default: Today's date
+   - Click date → Loads that day's transactions
+2. **Summary Section**
+   - Opening Stock: Closing stock of previous day
+   - Received Today: Sum of all IN transactions (green)
+   - Dispatched Today: Sum of all OUT transactions (red)
+   - Closing Stock: Opening + Received - Dispatched
+3. **Detailed Transactions Table**
+   - Columns: Time, Type (IN/OUT), Material, Client, Qty, Bill No
+   - Sorting: Default Time ascending
 
-## 🎯 Features by Section
+**ACTIONS:**
+1. **Print Report Button:** Opens print dialog with company header
+2. **Click Bill Number:** Opens bill detail view
+3. **Navigation Arrows:** Jump between dates
 
-### Dashboard
-- Total stock value
-- Today's IN/OUT summary
-- Recent transactions
-- Quick stats
 
-### Inventory Section
-- **GRN (Receiving)**: Record incoming materials
-- **Deliveries**: Record outgoing materials
-- **Stock Summary**: Current inventory levels
-- **Daily Breakdown**: Today's transactions
-- **History**: Complete transaction log
+### PAGE 4: CLIENTS (Client Directory)
 
-### Sales Section
-- **Bookings**: Customer orders
-- **Direct Sales**: Direct customer sales
-- **Payments**: Payment tracking
-- **Client Ledger**: Client transaction history
-- **Pending Bills**: Unpaid bills tracking
-- **Unpaid/Paid Transactions**: Receivables overview
+**URL:** /clients
+**Access:** All users
 
-### Directory (Admin Only)
-- **Material Brands**: Manage materials
-- **Clients**: Manage client information
-
-### System
-- **Settings**: User management, permissions, company settings
-- **Import & Export**: Bulk data operations
-- **Logout**: Secure logout
-
----
-
-## 👤 User Roles & Permissions
-
-### Admin
-- Full access to all features
-- User management
-- Settings configuration
-- Import/Export
-- Directory management
-
-### User (Customizable)
-- `can_view_stock`: Access to Stock Summary
-- `can_view_daily`: Access to Daily Breakdown
-- `can_view_history`: Access to transaction history
-- `can_import_export`: Access to data import/export
-- `can_manage_directory`: Access to manage clients/materials
-
----
-
-## 🗂️ File Structure
-
-```
-ahmed_cement_final/
-├── main.py                 # Main application (2500+ lines)
-├── models.py              # Database models
-├── requirements.txt       # Python dependencies
-├── README.md             # This file
-│
-├── instance/             # Database folder
-│   └── ahmed_cement.db  # SQLite database
-│
-├── static/               # Static files
-│   └── uploads/         # Photo uploads
-│
-├── templates/            # HTML templates (27 files)
-│   ├── layout.html      # Base layout (dark theme)
-│   ├── index.html       # Dashboard
-│   ├── login.html       # Login page
-│   ├── grn.html         # GRN management
-│   ├── deliveries.html  # Deliveries
-│   ├── materials.html   # Material management
-│   ├── clients.html     # Client management
-│   ├── bookings.html    # Bookings
-│   ├── direct_sales.html # Direct sales
-│   ├── payments.html    # Payments
-│   ├── tracking.html    # Transaction history
-│   ├── stock_summary.html # Stock overview
-│   ├── daily_transactions.html # Daily breakdown
-│   ├── client_ledger.html # Client ledger
-│   ├── pending_bills.html # Pending bills
-│   ├── settings.html    # System settings
-│   └── [22 more templates]
-│
-├── blueprints/           # Modular routes (optional)
-│   ├── admin.py
-│   ├── data_lab.py
-│   ├── import_export.py
-│   └── inventory.py
-│
-└── utils/                # Utility functions
-    └── module_loader.py
+**LAYOUT:**
+```text
+┌──────────────────────────────────────────────────────────────────────┐
+│ CLIENT DIRECTORY                               [+ Add New Client]     │
+├──────────────────────────────────────────────────────────────────────┤
+│ Search: [____________]  Category: [All ▼]  Status: [Active ▼] [Go]  │
+├──────────────────────────────────────────────────────────────────────┤
+│                                                                       │
+│ Code      │ Name              │ Phone        │ Category │ Actions    │
+│ ──────────┼───────────────────┼──────────────┼──────────┼──────────  │
+│ tmpc-0001 │ Zafar Builders    │ 0321-1234567 │ Credit   │ [View][Edit]│
+│ tmpc-0002 │ Ahmed Construction│ 0333-7654321 │ Credit   │ [View][Edit]│
+│ tmpc-0003 │ Khan Traders      │ 0345-9876543 │ General  │ [View][Edit]│
+│ tmpc-0004 │ Walking Customer  │ -            │ Cash     │ [View][Edit]│
+│                                                                       │
+│ Showing 1-10 of 45 clients                      « 1 2 3 4 5 »        │
+│                                                                       │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
----
+**ADD NEW CLIENT FORM (Modal):**
+- **Client Code:** Auto-generated (tmpc-XXXXXX)
+- **Client Name*:** Required
+- **Phone Number:** Optional
+- **Address:** Optional
+- **Category*:** General, Credit Customer, Cash Customer
+- **Require Manual Invoice:** Checkbox to force manual bill entry
 
-## 🔧 Advanced Configuration
+**HOW TO USE:**
+- **Add new client:** Click "+ Add New Client" -> Fill details -> Save
+- **Find existing client:** Type name in search box
+- **Update client:** Click "Edit" button
+- **Deactivate client:** Edit -> Change status to "Inactive"
 
-### Database
-- SQLite database located at `instance/ahmed_cement.db`
-- Automatic schema migrations on startup
-- Backup database through Settings page
 
-### Photo Uploads
-- Max file size: 16MB
-- Location: `static/uploads/`
-- Supported formats: JPG, PNG, PDF
-- Naming: Timestamp + original filename
+### PAGE 5: MATERIALS (Material Master)
 
-### Bill Numbering
-- Auto-generated format: #1000, #1001, #1002...
-- Counter stored in `BillCounter` table
-- Can be customized through database
+**URL:** /materials
+**Access:** All users
 
----
-
-## 📊 Database Schema
-
-### Main Tables
-- `user` - User accounts and permissions
-- `client` - Client master with auto codes
-- `material` - Material master with auto codes
-- `entry` - Complete IN/OUT transaction log
-- `grn` + `grn_item` - Goods receipt notes
-- `booking` + `booking_item` - Customer bookings
-- `delivery` + `delivery_item` - Deliveries
-- `direct_sale` + `direct_sale_item` - Direct sales
-- `payment` - Payment records
-- `invoice` - Invoice management
-- `pending_bill` - Unpaid bills tracking
-- `bill_counter` - Auto bill numbering
-- `settings` - System configuration
-
----
-
-## 🐛 Troubleshooting
-
-### App won't start?
-```bash
-# Check Python version
-python --version  # Should be 3.10+
-
-# Reinstall dependencies
-pip install -r requirements.txt --force-reinstall
-
-# Delete database and restart (⚠️ will lose data)
-rm instance/ahmed_cement.db
-python main.py
+**LAYOUT:**
+```text
+┌──────────────────────────────────────────────────────────────────────┐
+│ MATERIALS MASTER                              [+ Add New Material]    │
+├──────────────────────────────────────────────────────────────────────┤
+│                                                                       │
+│ Code        │ Material Name    │ Unit Price │ Current Stock │ Actions│
+│ ────────────┼──────────────────┼────────────┼───────────────┼─────── │
+│ tmpm-00001  │ DG Cement        │ Rs 800     │ 150 bags      │ [Edit] │
+│ tmpm-00002  │ Askari Cement    │ Rs 750     │ 100 bags      │ [Edit] │
+│ tmpm-00003  │ Lucky Cement     │ Rs 780     │ 200 bags      │ [Edit] │
+│ tmpm-00004  │ Maple Leaf Cement│ Rs 820     │ 50 bags       │ [Edit] │
+│                                                                       │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
-### Can't login?
-- Use default: admin / admin123
-- Clear browser cache
-- Check if `instance/ahmed_cement.db` exists
+**FIELDS:**
+1. **Material Code:** Auto-generated (tmpm-XXXXX)
+2. **Material Name*:** Required (e.g., "DG Cement")
+3. **Unit Price*:** Price per bag in Rupees
+4. **Current Stock:** Read-only, calculated from transactions
 
-### Photos not uploading?
-- Check file size (max 16MB)
-- Ensure `static/uploads/` folder exists
-- Check file permissions
+**ACTIONS:**
+- **Add New Material:** Click "+ Add New Material" -> Enter details -> Save
+- **Edit Material:** Click "Edit" -> Update price/name -> Save
 
-### Stock not updating?
-- Ensure material exists in Material Brands
-- Check transaction was successful (flash message)
-- View History to verify entry was created
 
----
+### PAGE 6: BOOKINGS
 
-## 🔒 Security Best Practices
+**URL:** /bookings
+**Access:** All users
 
-1. **Change default password** immediately
-2. **Regular backups** (Settings → Backup Database)
-3. **Limit admin access** to trusted users only
-4. **Use strong passwords** for all accounts
-5. **Keep Python and dependencies updated**
-6. **Restrict file upload types** if needed
-7. **Enable HTTPS** in production
+**LAYOUT:**
+```text
+┌──────────────────────────────────────────────────────────────────────┐
+│ BOOKINGS                                      [+ Add New Booking]     │
+├──────────────────────────────────────────────────────────────────────┤
+│ Filter: [All Clients ▼] [All Materials ▼] [Date From:__] [Date To:__]│
+├──────────────────────────────────────────────────────────────────────┤
+│                                                                       │
+│ Date     │Client         │Material     │Qty │Amount  │Paid│Bill No  │
+│ ─────────┼───────────────┼─────────────┼────┼────────┼────┼──────── │
+│ 02-03-26 │Zafar Builders │DG Cement    │50  │40,000  │0   │MANUAL-01│
+│ 02-03-26 │Khan Traders   │Askari Cement│30  │22,500  │5000│#1001    │
+│ 02-02-26 │Ahmed Const.   │Lucky Cement │100 │78,000  │0   │12345    │
+│                                                                       │
+└──────────────────────────────────────────────────────────────────────┘
+```
 
----
+**ADD NEW BOOKING FORM:**
+- **Client*:** Select from existing clients
+- **Location:** Delivery address (optional)
+- **Materials Section:**
+  - Select Material, Enter Quantity
+  - Rate auto-fills, Amount auto-calculates
+  - Can add multiple rows
+- **Total Amount:** Grand total
+- **Paid Amount:** Advance payment (optional)
+- **Manual Bill No:** Optional (auto-generated if empty)
+- **Photo:** Optional upload
 
-## 📈 What's New in v2.0
+**BOOKING LIFECYCLE:**
+1. **CREATED:** Booking saved, materials reserved, pending bill created.
+2. **PARTIAL DISPATCH:** Some materials dispatched, booking quantity reduced.
+3. **FULLY DISPATCHED:** All materials delivered, booking quantity 0.
+4. **PAID:** Payment received, pending bill cleared.
 
-### Merged Features
-✅ Combined best features from both original apps  
-✅ Enhanced dark theme UI from 9000v5  
-✅ Added GRN functionality from pyanywhere  
-✅ Added Deliveries functionality from pyanywhere  
-✅ Unified database schema  
-✅ Consistent navigation and UX  
 
-### UI Improvements
-✅ Professional dark theme (dark blue/gold)  
-✅ Collapsible sidebar with scrolling  
-✅ Responsive mobile design  
-✅ Modal-based forms  
-✅ Loading indicators  
-✅ Better icons and typography  
+### PAGE 7: DISPATCHING (Stock Out)
 
-### New Features
-✅ Auto-generated client codes (tmpc-000001)  
-✅ Auto-generated material codes (tmpm-00001)  
-✅ Enhanced permissions system  
-✅ Material total tracking  
-✅ Comprehensive entry logging  
-✅ Settings table for configuration  
+**URL:** /dispatching
+**Access:** All users
 
----
+**LAYOUT:**
+```text
+┌──────────────────────────────────────────────────────────────────────┐
+│ DISPATCHING (Stock Out)                                               │
+├──────────────────────────────────────────────────────────────────────┤
+│                                                                       │
+│ Date*:            [2026-02-03]                                        │
+│                                                                       │
+│ Type*:            [● OUT    ○ IN]                                     │
+│                                                                       │
+│ Material*:        [Select Material ▼]                                │
+│                   (DG Cement)                                         │
+│                                                                       │
+│ Client*:          [Select Client ▼]                                  │
+│                   (Zafar Builders - tmpc-00001)                      │
+│                                                                       │
+│ Quantity*:        [___________] bags                                 │
+│                                                                       │
+│ Bill/Invoice No:  [___________]  (Optional)                          │
+│                                                                       │
+│ Nimbus/Ref No:    [___________]  (Optional)                          │
+│                                                                       │
+│                                                [Cancel] [Dispatch]    │
+└──────────────────────────────────────────────────────────────────────┘
+```
 
-## 🎓 Learning Resources
+**DISPATCHING PROCESS:**
+- **Date*:** Actual dispatch date
+- **Type*:** Always OUT for dispatching
+- **Material*:** Select material
+- **Client*:** Select client
+  - **CRITICAL VALIDATION:** System checks if client has booking for this material.
+  - **If NO booking:** Shows error message.
+- **Quantity*:** Bags to dispatch
+  - **Validation:** Cannot exceed booking quantity.
+- **Bill/Invoice No:** Optional link to invoice
 
-### For Beginners
-1. Start with Dashboard to understand overview
-2. Add 2-3 test materials
-3. Add 1-2 test clients
-4. Create a test GRN
-5. Create a test delivery
-6. View history to see transaction log
-7. Delete test data before production use
+**SCENARIOS:**
+- **Dispatch against booking:** Select client/material -> Enter qty -> Dispatch. Booking reduced, stock reduced.
+- **Partial dispatch:** Enter partial qty. Remaining booking stays open.
+- **No booking (Error):** Try to dispatch to client without booking -> Error shown -> Use Direct Sale instead.
+- **Over-dispatch (Error):** Try to dispatch more than booked -> Error shown.
 
-### For Administrators
-1. Review user permissions
-2. Configure company settings
-3. Set up regular backup schedule
-4. Train users on specific sections
-5. Monitor transaction logs
 
----
+### PAGE 8: DIRECT SALES
 
-## 📞 Support
+**URL:** /direct_sales
+**Access:** All users
 
-### Common Questions
+**PURPOSE:** Immediate cash sales without booking (Walking customers, one-time buyers).
 
-**Q: How do I backup my data?**  
-A: Settings → Backup Database → Download .db file
+**LAYOUT:**
+```text
+┌──────────────────────────────────────────────────────────────────────┐
+│ DIRECT SALES                                [+ Add New Direct Sale]   │
+├──────────────────────────────────────────────────────────────────────┤
+│                                                                       │
+│ Date      │ Client        │ Materials       │ Amount  │ Paid  │ Bill │
+│ ──────────┼───────────────┼─────────────────┼─────────┼───────┼───── │
+│ 02-03-26  │ Walk-in       │ DG Cement (10)  │ 8,000   │ 8,000 │ #1050│
+│ 02-03-26  │ Fahad Const.  │ Askari (20)     │ 15,000  │ 15,000│ CS-01│
+│ 02-02-26  │ Ali Brothers  │ Lucky (5)       │ 3,900   │ 3,900 │ #1049│
+│                                                                       │
+└──────────────────────────────────────────────────────────────────────┘
+```
 
-**Q: Can I change the bill number format?**  
-A: Currently #1000 format. Can be customized in database.
+**ADD DIRECT SALE FORM:**
+- **Client Name*:** Can type ANY name (doesn't need to be in directory).
+- **Materials Section:** Select material, qty.
+- **Paid Amount*:** Usually equals Total Amount for cash sales.
+- **Payment Method*:** Cash, Bank Transfer, Cheque, Other.
+- **Category:** Cash, Credit, General.
 
-**Q: How do I add more users?**  
-A: Settings → Add User → Set permissions
+**KEY DIFFERENCES: DIRECT SALE vs BOOKING**
+- **Client:** Booking requires existing client; Direct Sale accepts any name.
+- **Stock Movement:** Booking reserves only; Direct Sale does immediate OUT.
+- **Payment:** Booking can be 0; Direct Sale usually full payment.
+- **Dispatch:** Booking needs separate dispatch; Direct Sale includes dispatch.
 
-**Q: Can I export data to Excel?**  
-A: Yes, use Import & Export section (admin only)
 
-**Q: Mobile app available?**  
-A: Mobile-responsive web app, access via browser
+### PAGE 9: PENDING BILLS
 
----
+**URL:** /pending_bills
+**Access:** All users
 
-## 📝 Version History
+**PURPOSE:** Accounts Receivable / Unpaid Bills.
 
-### v2.0 (Current) - February 2026
-- Merged both applications
-- Enhanced dark UI
-- Added GRN and Deliveries
-- Auto-generated codes
-- Comprehensive documentation
+**LAYOUT:**
+```text
+┌──────────────────────────────────────────────────────────────────────┐
+│ PENDING BILLS                                                         │
+├──────────────────────────────────────────────────────────────────────┤
+│ View: [● Manual Bills  ○ Automatic Bills]                           │
+├──────────────────────────────────────────────────────────────────────┤
+│ Filters: [Client ▼] [Bill No: ___] [Status: Unpaid ▼] [Apply]      │
+├──────────────────────────────────────────────────────────────────────┤
+│                                                                       │
+│ Bill No   │Client         │Amount  │Paid   │Balance │Status │Actions│
+│ ──────────┼───────────────┼────────┼───────┼────────┼───────┼────── │
+│ MANUAL-01 │Zafar Builders │40,000  │0      │40,000  │UNPAID │[View] │
+│ 12345     │Khan Traders   │22,500  │5,000  │17,500  │PARTIAL│[View] │
+│ BK-2026-1 │Ahmed Const.   │78,000  │78,000 │0       │PAID ✓ │[View] │
+│                                                                       │
+│ ──────────────────────────────────────────────────────────────────── │
+│ TOTALS:   45 bills        │350,000 │120,000 │230,000 │               │
+│                                                                       │
+└──────────────────────────────────────────────────────────────────────┘
+```
 
-### v1.x (Original Apps)
-- App 1: pyanywhere (CRM features)
-- App 2: 9000v5 (Advanced UI and features)
+**TABS:**
+1. **MANUAL BILLS:** Bills from physical bill book (official).
+2. **AUTOMATIC BILLS:** System generated bills (#1001).
 
----
+**COLUMNS:**
+- **Status:** UNPAID (Red), PARTIAL (Yellow), PAID (Green).
+- **Actions:** View, Mark as Paid, Edit.
 
-## 🎯 Future Enhancements (Planned)
-
-- [ ] Advanced reporting with charts
-- [ ] Email notifications
-- [ ] SMS integration
-- [ ] Barcode scanning
-- [ ] Multi-warehouse support
-- [ ] API endpoints
-- [ ] Mobile native app
-- [ ] Multi-language support
-
----
-
-## ⚖️ License
-
-Proprietary - For authorized use only
-
----
-
-## 🙏 Acknowledgments
-
-This integrated system combines:
-- Comprehensive CRM features from pyanywhere app
-- Professional dark UI from 9000v5 app
-- Enhanced functionality and bug fixes
-- Unified user experience
-
----
-
-**Made with ❤️ for Ahmed Cement**
-
-*Professional Inventory Management System*  
-*Version 2.0 - February 2026*
+**SCENARIOS:**
+- **Check who owes money:** Filter by "Unpaid" status.
+- **Check specific client:** Filter by Client name.
+- **Mark as paid:** Click "Mark as Paid" or add record in Payments page.
+- **Aging check:** Filter by date range to find old bills.
+#   V S C O D E - A P P  
+ 

@@ -30,12 +30,6 @@
                 </tr>
             </thead>
             <tbody>
-                {% set ns = namespace(balance=0) %}
-                {% for t in financial_history|reverse %}
-                {% set ns.balance = ns.balance + t.debit - t.credit %}
-                {% endfor %}
-                
-                {% set current_bal = namespace(val=ns.balance) %}
                 {% for t in financial_history %}
                 <tr style="border-bottom: 1px solid #334155;">
                     <td class="ps-4 py-3 small text-white-50">{{ t.date.strftime('%Y-%m-%d %H:%M') }}</td>
@@ -45,13 +39,16 @@
                         </a>
                     </td>
                     <td>
-                        <span class="badge bg-dark border border-secondary text-warning">{{ t.bill_no }}</span>
+                        {% if t.bill_no %}
+                        <a href="{{ url_for('view_bill', bill_no=t.bill_no|replace('#', '%23')) }}" class="badge bg-dark border border-secondary text-warning text-decoration-none">{{ t.bill_no }}</a>
+                        {% else %}
+                        <span class="badge bg-dark border border-secondary text-white-50">---</span>
+                        {% endif %}
                     </td>
                     <td class="text-end text-danger fw-bold">{{ "{:,.2f}".format(t.debit) if t.debit > 0 else '---' }}</td>
                     <td class="text-end text-success fw-bold">{{ "{:,.2f}".format(t.credit) if t.credit > 0 else '---' }}</td>
-                    <td class="text-end pe-4 fw-bold text-white">{{ "{:,.2f}".format(current_bal.val) }}</td>
+                    <td class="text-end pe-4 fw-bold text-white">{{ "{:,.2f}".format(t.balance) }}</td>
                 </tr>
-                {% set current_bal.val = current_bal.val - t.debit + t.credit %}
                 {% endfor %}
             </tbody>
         </table>
@@ -86,7 +83,11 @@
                         <tr style="border-bottom: 1px solid #334155;">
                             <td class="ps-3 small">{{ m.date }}</td>
                             <td>
-                                <span class="badge bg-dark border border-secondary text-warning">{{ m.bill_no or '---' }}</span>
+                                {% if m.bill_no %}
+                                <a href="{{ url_for('view_bill', bill_no=m.bill_no|replace('#', '%23')) }}" class="badge bg-dark border border-secondary text-warning text-decoration-none">{{ m.bill_no }}</a>
+                                {% else %}
+                                <span class="badge bg-dark border border-secondary text-white-50">---</span>
+                                {% endif %}
                                 <br><small class="text-white-50">{{ m.nimbus_no or '' }}</small>
                             </td>
                             <td class="fw-bold">{{ m.material }}</td>
@@ -124,7 +125,11 @@
                     <tbody>
                         {% for b in pending_bills %}
                         <tr style="border-bottom: 1px solid #334155;">
-                            <td class="ps-3 fw-bold text-warning">{{ b.bill_no }}</td>
+                            <td class="ps-3 fw-bold">
+                                {% if b.bill_no %}
+                                <a href="{{ url_for('view_bill', bill_no=b.bill_no|replace('#', '%23')) }}" class="text-warning text-decoration-none">{{ b.bill_no }}</a>
+                                {% endif %}
+                            </td>
                             <td class="text-end text-danger fw-bold">{{ "{:,.0f}".format(b.amount) }}</td>
                             <td>
                                 {% if b.is_paid %}

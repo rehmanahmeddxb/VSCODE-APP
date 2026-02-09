@@ -22,14 +22,14 @@ def stock_summary():
     prev_stats = db.session.query(
         Entry.material,
         func.sum(case((Entry.type == 'IN', Entry.qty), else_=-Entry.qty)).label('prev_net')
-    ).filter(Entry.date < sel_date).group_by(Entry.material).all()
+    ).filter(Entry.date < sel_date, Entry.is_void == False).group_by(Entry.material).all()
     prev_map = {row.material: float(row.prev_net or 0) for row in prev_stats}
     
     day_stats = db.session.query(
         Entry.material,
         func.sum(case((Entry.type == 'IN', Entry.qty), else_=0)).label('day_in'),
         func.sum(case((Entry.type == 'OUT', Entry.qty), else_=0)).label('day_out')
-    ).filter(Entry.date == sel_date).group_by(Entry.material).all()
+    ).filter(Entry.date == sel_date, Entry.is_void == False).group_by(Entry.material).all()
     day_map = {row.material: {'in': float(row.day_in or 0), 'out': float(row.day_out or 0)} for row in day_stats}
     
     all_materials = set(prev_map.keys()) | set(day_map.keys())
@@ -65,11 +65,14 @@ def daily_transactions():
 
     q = Entry.query.filter(Entry.date >= date_from, Entry.date <= date_to)
     if category:
-        q = q.filter(Entry.client_category == category)
+        from models import Client
+        q = q.outerjoin(Client, Entry.client_code == Client.code).filter(
+            db.or_(Entry.client_category == category, Client.category == category)
+        )
     entries_pagination = q.order_by(Entry.date.desc(), Entry.time.desc()).paginate(page=page, per_page=per_page)
 
     materials = Material.query.all()
-    from models import Client, PendingBill
+    from models import PendingBill
     # Build categories list for filter
     categories = sorted(list({c.category for c in Client.query.all() if c.category}))
     if 'Cash' not in categories:

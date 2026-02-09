@@ -196,13 +196,10 @@
                 <div class="text-white-50 small fw-bold px-4 mt-4 mb-2 text-uppercase" style="font-size: 0.7rem;">Inventory</div>
                 
                 {% if current_user.can_view_stock or current_user.role == 'admin' %}
-                <a href="/stock_summary" class="nav-link {{ 'active' if request.path == '/stock_summary' }}" onclick="closeSidebar()">
                 <a href="/grn" class="nav-link {{ 'active' if request.path == '/grn' }}" onclick="closeSidebar()">
                     <i class="bi bi-box-arrow-in-down"></i> GRN (Receiving)
                 </a>
-                <a href="/deliveries" class="nav-link {{ 'active' if request.path == '/deliveries' }}" onclick="closeSidebar()">
-                    <i class="bi bi-truck"></i> Deliveries
-                </a>
+                <a href="/stock_summary" class="nav-link {{ 'active' if request.path == '/stock_summary' }}" onclick="closeSidebar()">
                     <i class="bi bi-graph-up"></i> Stock Summary
                 </a>
                 {% endif %}
@@ -225,10 +222,13 @@
                 </a>
 
                 <a href="/direct_sales" class="nav-link {{ 'active' if request.path == '/direct_sales' }}" onclick="closeSidebar()">
-                    <i class="bi bi-cart-check"></i> Direct Sales
+                    <i class="bi bi-cart-check"></i> Sales
                 </a>
                 <a href="/clients" class="nav-link {{ 'active' if request.path.startswith('/ledger') or request.path == '/clients' }}" onclick="closeSidebar()">
                     <i class="bi bi-journal-text"></i> Client Ledger
+                </a>
+                <a href="/decision_ledger" class="nav-link {{ 'active' if request.path == '/decision_ledger' }}" onclick="closeSidebar()">
+                    <i class="bi bi-clipboard-data"></i> Decision Ledger
                 </a>
                 {% endif %}
 
@@ -380,6 +380,19 @@
             dateFormat: "Y-m-d",
             theme: "dark"
         });
+    });
+
+    // Auto-download bill if param exists
+    document.addEventListener('DOMContentLoaded', function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const downloadBill = urlParams.get('download_bill');
+        if (downloadBill) {
+            // Remove param from URL to prevent loop on refresh
+            const newUrl = window.location.pathname + window.location.search.replace(/[\?&]download_bill=[^&]+/, '').replace(/^&/, '?');
+            window.history.replaceState({}, '', newUrl);
+            // Trigger download
+            window.location.href = '/download_invoice/' + encodeURIComponent(downloadBill);
+        }
     });
 </script>
 </body>

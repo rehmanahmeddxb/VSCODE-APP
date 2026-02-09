@@ -20,11 +20,11 @@
             </div>
             <div class="col-md-2">
                 <label class="form-label text-white-50 small fw-bold">Start Date</label>
-                <input type="date" name="start_date" class="form-control bg-dark text-white border-secondary datepicker" value="{{ filters.start_date }}">
+                <input type="date" name="start_date" class="form-control bg-dark text-white border-secondary datepicker" value="{{ filters.start_date or '' }}">
             </div>
             <div class="col-md-2">
                 <label class="form-label text-white-50 small fw-bold">End Date</label>
-                <input type="date" name="end_date" class="form-control bg-dark text-white border-secondary datepicker" value="{{ filters.end_date }}">
+                <input type="date" name="end_date" class="form-control bg-dark text-white border-secondary datepicker" value="{{ filters.end_date or '' }}">
             </div>
             <div class="col-md-2">
                 <label class="form-label text-white-50 small fw-bold">Material</label>
@@ -37,7 +37,7 @@
             </div>
             <div class="col-md-2">
                 <label class="form-label text-white-50 small fw-bold">Bill No / Nimbus</label>
-                <input type="text" name="bill_no" class="form-control bg-dark text-white border-secondary" placeholder="Search bill..." value="{{ filters.bill_no }}">
+                <input type="text" name="bill_no" class="form-control bg-dark text-white border-secondary" placeholder="Search bill..." value="{{ filters.bill_no or '' }}">
             </div>
             <div class="col-md-2 d-flex align-items-end">
                 <button type="submit" class="btn btn-warning w-100 fw-bold">
@@ -59,6 +59,7 @@
                     <th class="border-slate-700 px-4 py-3">Details</th>
                     <th class="border-slate-700 px-4 py-3 text-end">Amount</th>
                     <th class="border-slate-700 px-4 py-3 text-center">Status</th>
+                    <th class="border-slate-700 px-4 py-3 text-end">Action</th>
                 </tr>
             </thead>
             <tbody>
@@ -70,7 +71,9 @@
                         <small class="text-white-50">{{ t.client_code }}</small>
                     </td>
                     <td class="px-4 border-slate-700 py-3">
-                        <div class="text-warning fw-bold">{{ t.bill_no }}</div>
+                        <div class="fw-bold">
+                            <a href="{{ url_for('view_bill', bill_no=t.bill_no|replace('#', '%23')) }}" class="text-warning text-decoration-none">{{ t.bill_no }}</a>
+                        </div>
                         {% if t.nimbus_no %}<small class="text-white-50">N: {{ t.nimbus_no }}</small>{% endif %}
                     </td>
                     <td class="px-4 border-slate-700 py-3">{{ t.reason }}</td>
@@ -82,13 +85,68 @@
                             <span class="badge bg-danger-subtle text-danger border border-danger border-opacity-25 px-3 py-2 rounded-pill">UNPAID</span>
                         {% endif %}
                     </td>
+                    <td class="px-4 border-slate-700 py-3 text-end">
+                        {% if not t.is_paid %}
+                        <button class="btn btn-sm btn-success fw-bold rounded-pill shadow-sm" data-bs-toggle="modal" data-bs-target="#receivePayModal{{ t.id }}">
+                            <i class="bi bi-cash-stack me-1"></i> Receive
+                        </button>
+                        
+                        <div class="modal fade" id="receivePayModal{{ t.id }}" tabindex="-1">
+                            <div class="modal-dialog modal-dialog-centered">
+                                <form action="/add_payment" method="POST" class="modal-content border-secondary" style="background: #1e293b;">
+                                    <div class="modal-header border-0">
+                                        <h5 class="text-warning fw-bold">Receive Payment</h5>
+                                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <div class="modal-body text-start">
+                                        <div class="mb-3">
+                                            <label class="text-white-50 small fw-bold">Client</label>
+                                            <input type="text" name="client_name" value="{{ t.client_name }}" class="form-control bg-dark text-white border-secondary" readonly>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="text-white-50 small fw-bold">Bill No</label>
+                                            <input type="text" name="manual_bill_no" value="{{ t.bill_no }}" class="form-control bg-dark text-white border-secondary" readonly>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="text-white-50 small fw-bold">Amount to Receive</label>
+                                            <input type="number" step="0.01" name="amount" value="{{ t.amount }}" class="form-control bg-dark text-white border-secondary fw-bold text-success" required>
+                                        </div>
+                                        <div class="mb-3">
+                                            <label class="text-white-50 small fw-bold">Method</label>
+                                            <select name="method" class="form-select bg-dark text-white border-secondary">
+                                                <option value="Cash">Cash</option>
+                                                <option value="Bank">Bank Transfer</option>
+                                                <option value="Check">Check</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer border-0">
+                                        <button type="submit" class="btn btn-success w-100 fw-bold rounded-pill">Confirm Payment</button>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                        {% else %}
+                        <span class="text-white-50 small"><i class="bi bi-check2-all text-success fs-5"></i></span>
+                        {% endif %}
+                    </td>
                 </tr>
                 {% else %}
                 <tr>
-                    <td colspan="6" class="text-center py-5 text-white-50">No transactions found matching the filters.</td>
+                    <td colspan="7" class="text-center py-5 text-white-50">No transactions found matching the filters.</td>
                 </tr>
                 {% endfor %}
             </tbody>
+            <tfoot class="bg-slate-900 border-top border-secondary">
+                <tr>
+                    <td colspan="4" class="text-end py-3 fw-bold text-white-50">TOTAL</td>
+                    <td class="px-4 py-3 text-end fw-bold text-white fs-5">
+                        {% set total_amount = transactions|sum(attribute='amount') %}
+                        {{ "%.2f"|format(total_amount) }}
+                    </td>
+                    <td colspan="2"></td>
+                </tr>
+            </tfoot>
         </table>
     </div>
 </div>

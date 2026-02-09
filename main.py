@@ -4,10 +4,11 @@ import secrets
 import json
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_file, Response, make_response
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
+import logging
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from datetime import datetime, date
-from sqlalchemy import func, case, text
+from sqlalchemy import func, case, text, or_, and_, exists, not_
 from types import SimpleNamespace
 from models import db, User, Client, Material, Entry, PendingBill, Booking, BookingItem, Payment, Invoice, BillCounter, DirectSale, DirectSaleItem, GRN, GRNItem, Delivery, DeliveryItem, Settings
 
@@ -32,6 +33,9 @@ login_manager = LoginManager()
 login_manager.login_view = 'login'
 login_manager.init_app(app)
 
+# Configure logging
+logging.basicConfig(filename='errorlog.txt', level=logging.ERROR, 
+                    format='%(asctime)s %(levelname)s: %(message)s')
 
 def generate_client_code():
     """Generate next client code in format tmpc-000001"""
@@ -95,7 +99,7 @@ def _ensure_user_password_column():
 
 def _ensure_model_columns():
     """Add any missing columns declared in models but missing in the DB."""
-    from sqlalchemy import String, Integer, Float, Date, DateTime, Boolean, Text
+    from sqlalchemy import String, Integer, Float, Date, DateTime, Boolean, Text, Boolean
 
     try:
         for table in db.metadata.sorted_tables:
@@ -107,7 +111,7 @@ def _ensure_model_columns():
                     sqltype = 'VARCHAR(200)'
                     if isinstance(coltype, (String, Text)):
                         sqltype = 'VARCHAR(200)'
-                    elif isinstance(coltype, (Integer, Boolean)):
+                    elif isinstance(coltype, (Integer, Boolean)) or str(coltype) == 'BOOLEAN':
                         sqltype = 'INTEGER'
                     elif isinstance(coltype, Float):
                         sqltype = 'REAL'
@@ -148,7 +152,7 @@ def load_user(user_id):
 @app.route('/bookings')
 @login_required
 def bookings_page():
-    bookings = Booking.query.order_by(Booking.date_posted.desc()).all()
+    bookings = Booking.query.filter_by(is_void=False).order_by(Booking.date_posted.desc()).all()
     clients = Client.query.filter_by(is_active=True).order_by(Client.name.asc()).all()
     materials = Material.query.order_by(Material.name.asc()).all()
     counter = BillCounter.query.first()
@@ -213,9 +217,11 @@ def add_booking():
                             qty=float(qty) if qty else 0,
                             price_at_time=float(rate) if rate else 0))
 
-    # Auto-add to PendingBill if there's an outstanding amount and a manual bill no
-    if pending_amount > 0 and manual_bill_no:
-        existing_pb = PendingBill.query.filter_by(bill_no=manual_bill_no, client_code=client.code).first()
+    # Auto-add to PendingBill (Use manual bill or generate BK-ID reference)
+    bill_ref = manual_bill_no if manual_bill_no else f"BK-{booking.id}"
+    
+    if pending_amount > 0:
+        existing_pb = PendingBill.query.filter_by(bill_no=bill_ref, client_code=client.code).first()
         if existing_pb:
             existing_pb.amount += pending_amount
             existing_pb.reason = f"Booking: {materials_list[0] if materials_list else ''}"
@@ -223,10 +229,10 @@ def add_booking():
             db.session.add(PendingBill(
                 client_code=client.code,
                 client_name=client.name,
-                bill_no=manual_bill_no,
+                bill_no=bill_ref,
                 amount=pending_amount,
                 reason=f"Booking: {materials_list[0] if materials_list else ''}",
-                is_manual=True,
+                is_manual=bool(manual_bill_no),
                 created_at=datetime.now().strftime('%Y-%m-%d %H:%M'),
                 created_by=current_user.username
             ))
@@ -239,7 +245,9 @@ def add_booking():
     if pending_amount > 0:
         msg += f' — Pending amount: {pending_amount}'
     flash(msg, 'success')
-    return redirect(url_for('bookings_page'))
+    
+    bill_ref = manual_bill_no if manual_bill_no else f"BK-{booking.id}"
+    return redirect(url_for('bookings_page', download_bill=bill_ref))
 
 
 @app.route('/edit_bill/Booking/<int:id>', methods=['POST'])
@@ -286,21 +294,23 @@ def edit_booking(id):
 
     # Update PendingBill
     new_bill_no = booking.manual_bill_no
+    new_bill_ref = new_bill_no if new_bill_no else f"BK-{id}"
     new_pending_amount = max(0.0, booking.amount - booking.paid_amount)
     new_client = Client.query.filter_by(name=booking.client_name).first()
     new_client_code = new_client.code if new_client else None
 
     # Remove old pending bill if exists
-    if old_bill_no and old_client_code:
-        old_pb = PendingBill.query.filter_by(bill_no=old_bill_no, client_code=old_client_code).first()
+    old_bill_ref = old_bill_no if old_bill_no else f"BK-{id}"
+    if old_bill_ref and old_client_code:
+        old_pb = PendingBill.query.filter_by(bill_no=old_bill_ref, client_code=old_client_code).first()
         if old_pb:
             old_pb.amount -= old_pending_amount
             if old_pb.amount <= 0:
                 db.session.delete(old_pb)
 
-    # Add/update new pending bill if it has a manual bill no
-    if new_pending_amount > 0 and new_client_code and new_bill_no:
-        new_pb = PendingBill.query.filter_by(bill_no=new_bill_no, client_code=new_client_code).first()
+    # Add/update new pending bill
+    if new_pending_amount > 0 and new_client_code:
+        new_pb = PendingBill.query.filter_by(bill_no=new_bill_ref, client_code=new_client_code).first()
         if new_pb:
             new_pb.amount += new_pending_amount
             new_pb.client_name = booking.client_name
@@ -308,17 +318,19 @@ def edit_booking(id):
             db.session.add(PendingBill(
                 client_code=new_client_code,
                 client_name=booking.client_name,
-                bill_no=new_bill_no,
+                bill_no=new_bill_ref,
                 amount=new_pending_amount,
                 reason=f"Booking: {materials_list[0] if materials_list else ''}",
-                is_manual=True,
+                is_manual=bool(new_bill_no),
                 created_at=datetime.now().strftime('%Y-%m-%d %H:%M'),
                 created_by=current_user.username
             ))
 
     db.session.commit()
     flash('Booking updated', 'success')
-    return redirect(url_for('bookings_page'))
+    
+    bill_ref = booking.manual_bill_no if booking.manual_bill_no else f"BK-{id}"
+    return redirect(url_for('bookings_page', download_bill=bill_ref))
 
 
 # ==================== PAYMENT ROUTES ====================
@@ -326,7 +338,7 @@ def edit_booking(id):
 @app.route('/payments')
 @login_required
 def payments_page():
-    payments = Payment.query.order_by(Payment.date_posted.desc()).all()
+    payments = Payment.query.filter_by(is_void=False).order_by(Payment.date_posted.desc()).all()
     clients = Client.query.filter_by(is_active=True).order_by(Client.name.asc()).all()
     counter = BillCounter.query.first()
     if not counter:
@@ -373,7 +385,19 @@ def add_payment():
     if client:
         # Prefer matching by manual_bill_no when provided
         if manual_bill_no:
-            pending_q = PendingBill.query.filter_by(bill_no=manual_bill_no, client_code=client.code, is_paid=False).order_by(PendingBill.id.asc()).all()
+            filters = [
+                PendingBill.bill_no.ilike(manual_bill_no),
+                PendingBill.nimbus_no.ilike(manual_bill_no)
+            ]
+            # If input is numeric, also try matching with '#' prefix (e.g. input 1001 matches #1001)
+            if manual_bill_no.isdigit():
+                filters.append(PendingBill.bill_no.ilike(f"#{manual_bill_no}"))
+
+            pending_q = PendingBill.query.filter(
+                PendingBill.client_code == client.code,
+                PendingBill.is_paid == False,
+                or_(*filters)
+            ).order_by(PendingBill.id.asc()).all()
         else:
             # Otherwise apply to oldest unpaid bills for this client
             pending_q = PendingBill.query.filter_by(client_code=client.code, is_paid=False).order_by(PendingBill.id.asc()).all()
@@ -401,8 +425,32 @@ def add_payment():
         msg += f" — applied to: {details}"
     if remaining > 0 and amount > 0:
         msg += f" — Rs.{remaining:.2f} unapplied (advance)"
-    flash(msg, 'success')
-    return redirect(url_for('payments_page'))
+    
+    if manual_bill_no and not applied and amount > 0:
+        # Diagnostic check
+        reason = "check number or client"
+        filters_global = [
+            PendingBill.bill_no.ilike(manual_bill_no),
+            PendingBill.nimbus_no.ilike(manual_bill_no)
+        ]
+        if manual_bill_no.isdigit():
+            filters_global.append(PendingBill.bill_no.ilike(f"#{manual_bill_no}"))
+        global_match = PendingBill.query.filter(or_(*filters_global)).first()
+        if global_match:
+            if not client:
+                 reason = f"Bill belongs to {global_match.client_name} (Client not identified)"
+            elif global_match.client_code != client.code:
+                reason = f"Bill belongs to {global_match.client_name}"
+            elif global_match.is_paid:
+                reason = "Bill is already paid"
+        else:
+            reason = "Bill number not found"
+        flash(msg + f" (Warning: Could not link to Bill '{manual_bill_no}' - {reason})", 'warning')
+    else:
+        flash(msg, 'success')
+        
+    bill_ref = manual_bill_no if manual_bill_no else f"PAY-{payment.id}"
+    return redirect(url_for('payments_page', download_bill=bill_ref))
 
 
 @app.route('/edit_bill/Payment/<int:id>', methods=['POST'])
@@ -429,7 +477,9 @@ def edit_payment(id):
 
     db.session.commit()
     flash('Payment updated', 'success')
-    return redirect(url_for('payments_page'))
+    
+    bill_ref = payment.manual_bill_no if payment.manual_bill_no else f"PAY-{id}"
+    return redirect(url_for('payments_page', download_bill=bill_ref))
 
 
 # ==================== DIRECT SALES ROUTES ====================
@@ -437,7 +487,7 @@ def edit_payment(id):
 @app.route('/direct_sales')
 @login_required
 def direct_sales_page():
-    sales = DirectSale.query.order_by(DirectSale.date_posted.desc()).all()
+    sales = DirectSale.query.filter_by(is_void=False).order_by(DirectSale.date_posted.desc()).all()
     materials = Material.query.order_by(Material.name.asc()).all()
     clients = Client.query.filter_by(is_active=True).order_by(Client.name.asc()).all()
     categories = sorted(list({c.category for c in clients if c.category}))
@@ -450,29 +500,45 @@ def direct_sales_page():
         db.session.add(counter)
         db.session.commit()
     next_auto = f"#{counter.count}"
+    
+    stats = {
+        'billed': sum(1 for s in sales if s.category != 'Cash'),
+        'unbilled': sum(1 for s in sales if s.category == 'Cash')
+    }
+
+    settings = Settings.query.first()
+
     return render_template('direct_sales.html',
                            sales=sales,
                            materials=materials,
                            clients=clients,
                            categories=categories,
                            next_auto=next_auto,
-                           client_name_prefill=client_name_prefill)
+                           client_name_prefill=client_name_prefill,
+                           stats=stats,
+                           settings=settings)
 
 
 @app.route('/add_direct_sale', methods=['POST'])
 @login_required
 def add_direct_sale():
+  try:
     client_name = request.form.get('client_name', '').strip() or request.form.get('client_code', '').strip()
     materials_list = request.form.getlist('product_name[]')
     qtys = request.form.getlist('qty[]')
     rates = request.form.getlist('unit_rate[]')
-    amount = float(request.form.get('amount', 0) or 0)
+    # amount = float(request.form.get('amount', 0) or 0) # Recalculated below
     paid_amount = float(request.form.get('paid_amount', 0) or 0)
     manual_bill_no = request.form.get('manual_bill_no', '').strip()
+    allow_negative_stock = request.form.get('allow_negative_stock') == 'on'
+
+    # Check for global setting
+    settings = Settings.query.first()
+    global_negative_stock_allowed = settings.allow_global_negative_stock if settings else False
 
     photo_path = save_photo(request.files.get('photo'))
 
-    category = request.form.get('category', '').strip()
+    category_input = request.form.get('category', '').strip()
 
     # Find client by name or code
     client = Client.query.filter((Client.name == client_name) | (Client.code == client_name)).first()
@@ -482,18 +548,112 @@ def add_direct_sale():
     
     if client:
         client_name = client.name
-        if not category or category in ['Cash', 'General']:
-            category = client.category or 'Credit Customer'
+
+    # 1. Calculate Booking Balances
+    booking_balances = {}
+    if client:
+        for mat in set(materials_list):
+            if not mat: continue
+            booked = db.session.query(func.sum(BookingItem.qty)).join(Booking).filter(
+                Booking.client_name == client.name, 
+                BookingItem.material_name == mat, 
+                Booking.is_void == False
+            ).scalar() or 0
+            dispatched = db.session.query(func.sum(Entry.qty)).filter(
+                (Entry.client_code == client.code) | (Entry.client == client.name), 
+                Entry.material == mat, 
+                Entry.type == 'OUT',
+                Entry.is_void == False,
+                # Exclude Direct Sales that are NOT Booking Deliveries (i.e. Cash/Credit sales)
+                # This prevents regular sales from reducing the booking balance
+                not_(and_(Entry.nimbus_no == 'Direct Sale', Entry.client_category != 'Booking Delivery'))
+            ).scalar() or 0
+            booking_balances[mat] = max(0, booked - dispatched)
+
+    # 2. Process Items (Auto-Split Booking vs Sale)
+    processed_items = []
+    calculated_amount = 0
+
+    for mat, qty_val, rate_val in zip(materials_list, qtys, rates):
+        if not mat or not qty_val: continue
+        try:
+            qty = float(qty_val)
+            rate = float(rate_val) if rate_val else 0
+        except ValueError: continue
+        
+        balance = booking_balances.get(mat, 0)
+        qty_booking = 0
+        qty_sale = qty
+
+        if balance > 0:
+            qty_booking = min(qty, balance)
+            qty_sale = qty - qty_booking
+            booking_balances[mat] -= qty_booking
+        
+        if qty_booking > 0:
+            processed_items.append({
+                'product_name': mat,
+                'qty': qty_booking,
+                'price_at_time': 0,
+                'is_booking': True
+            })
+        
+        if qty_sale > 0:
+            processed_items.append({
+                'product_name': mat,
+                'qty': qty_sale,
+                'price_at_time': rate,
+                'is_booking': False
+            })
+            calculated_amount += (qty_sale * rate)
+
+    # 3. Stock Validation (Only for non-booked items)
+    # Aggregate required quantities first to prevent cumulative overrun
+    required_stock = {}
+    for item in processed_items:
+        if not item['is_booking']:
+            mat = item['product_name']
+            required_stock[mat] = required_stock.get(mat, 0) + item['qty']
+            
+    for mat, req_qty in required_stock.items():
+        mat_obj = Material.query.filter_by(name=mat).first()
+        if mat_obj:
+            available = mat_obj.total or 0
+            if not allow_negative_stock and not global_negative_stock_allowed and available < req_qty:
+                raise ValueError(f"Insufficient stock for {mat}. Available: {available}, Required: {req_qty} (Non-booked). Enable 'Allow Negative Stock' or global setting to bypass.")
+
+    # 4. Determine Final Category & Amount
+    amount = calculated_amount
+    all_booking = all(item['is_booking'] for item in processed_items)
+    any_booking = any(item['is_booking'] for item in processed_items)
+    
+    if all_booking:
+        category = "Booking Delivery"
+    elif any_booking:
+        category = "Mixed Transaction"
+    else:
+        if category_input == 'Cash':
+            category = 'Cash'
+        elif paid_amount >= amount:
+            category = "Cash"
+        else:
+            category = "Credit Customer"
+            
+    # Validation: Unbilled Cash Sale must be fully paid
+    if category == 'Cash' and paid_amount < amount:
+        flash('Cash Sale must be fully paid. Transaction not complete.', 'danger')
+        return redirect(url_for('direct_sales_page'))
 
     # Handle Cash category (Manual overrides)
     if category.lower() == 'cash':
         manual_client_name = request.form.get('manual_client_name', '').strip()
         if manual_client_name:
             client_name = manual_client_name
-        # Unbilled Cash: Disable manual_bill_no requirement
-        # If no manual_bill_no is provided for Cash, it remains UNBILLED
-        # Unbilled Cash: Disable manual_bill_no requirement
-        # If no manual_bill_no is provided for Cash, it remains UNBILLED
+    
+    # Force manual bill requirement for non-cash sales if not provided
+    if category != 'Cash' and not manual_bill_no and not create_invoice:
+        # We allow it but it will be auto-generated or marked as system bill
+        pass
 
     create_invoice = bool(request.form.get('create_invoice'))
     
@@ -561,27 +721,35 @@ def add_direct_sale():
     # Auto-add to PendingBill if it has a manual bill no or is a tracked credit sale
     # OR if it's an unregistered cash sale (to avoid orphan entries)
     # UNBILLED cash sales are given a dummy bill number to show up in ledgers
-    if (pending_amount > 0 and (manual_bill_no or (create_invoice and invoice_no) or (category and category.lower() != 'cash'))) or (category.lower() == 'cash'):
+    if (manual_bill_no or (create_invoice and invoice_no)) or (pending_amount > 0) or (category and category.lower() in ['cash', 'booking delivery', 'mixed transaction']):
         client_code = client.code if client else None
         
         # Determine bill number for the pending bill record
         # If no bill exists for a cash sale, use a placeholder
         pb_bill_no = pending_bill_no
-        if not pb_bill_no and category.lower() == 'cash':
-            pb_bill_no = f"CSH-{sale.id}"
+        if not pb_bill_no:
+            if category and category.lower() == 'cash':
+                pb_bill_no = f"CSH-{sale.id}"
+            else:
+                pb_bill_no = f"DS-{sale.id}"
             
         # Search by pb_bill_no if it exists
         existing_pb = PendingBill.query.filter_by(bill_no=pb_bill_no, client_code=client_code).first() if pb_bill_no else None
         if not existing_pb:
+            # Determine is_paid status.
+            # If amount is 0 (e.g. booking dispatch), keep as Unpaid so it appears in pending lists for tracking.
+            # Only mark as Paid if it was a real transaction (amount > 0) that was fully paid.
+            is_paid_status = (pending_amount <= 0 and amount > 0)
+
             db.session.add(PendingBill(
                 client_code=client_code,
                 client_name=(client.name if client else client_name),
                 bill_no=pb_bill_no,
                 amount=pending_amount,
                 reason=f"Direct Sale: {materials_list[0] if materials_list else ''}",
-                is_cash=(category.lower() == 'cash') if category else False,
+                is_cash=((category.lower() == 'cash') or bool(request.form.get('track_as_cash'))) if category else False,
                 is_manual=bool(manual_bill_no),
-                is_paid=(pending_amount <= 0),
+                is_paid=is_paid_status,
                 created_at=datetime.now().strftime('%Y-%m-%d %H:%M'),
                 created_by=current_user.username
             ))
@@ -589,45 +757,71 @@ def add_direct_sale():
     if create_invoice and inv:
         sale.invoice_id = inv.id
 
-    items_created = []
-    for mat, qty, rate in zip(materials_list, qtys, rates):
-        if mat:
-            dsi = DirectSaleItem(sale_id=sale.id,
-                               product_name=mat,
-                               qty=float(qty) if qty else 0,
-                               price_at_time=float(rate) if rate else 0)
-            db.session.add(dsi)
-            items_created.append(dsi)
-
-    # Create dispatching Entry rows
+    # Create DirectSaleItems and Entries
     now = datetime.now()
-    for item in items_created:
+    for item in processed_items:
+        # Create Sale Item
+        dsi = DirectSaleItem(sale_id=sale.id,
+                           product_name=item['product_name'],
+                           qty=item['qty'],
+                           price_at_time=item['price_at_time'])
+        db.session.add(dsi)
+
+        # Create Entry
         ledger_bill_ref = manual_bill_no if manual_bill_no else (inv.invoice_no if (create_invoice and inv) else "UNBILLED-" + str(sale.id))
         
+        # Determine category per item for mixed transactions
+        item_category = category
+        if item['is_booking']:
+            item_category = 'Booking Delivery'
+        elif category == 'Mixed Transaction':
+            if paid_amount >= amount:
+                item_category = 'Cash'
+            else:
+                item_category = 'Credit Customer'
+        elif category == 'Booking Delivery': # Fallback if main cat is Booking but this item isn't (shouldn't happen with split logic)
+            item_category = 'Credit Customer'
+
         entry = Entry(date=now.strftime('%Y-%m-%d'),
                       time=now.strftime('%H:%M:%S'),
                       type='OUT',
-                      material=item.product_name,
+                      material=item['product_name'],
                       client=client_name,
                       client_code=(client.code if client else None),
-                      qty=item.qty,
+                      qty=item['qty'],
                       bill_no=ledger_bill_ref,
                       nimbus_no='Direct Sale',
                       created_by=current_user.username,
-                      client_category=category)
+                      client_category=item_category)
         db.session.add(entry)
         
         # Update Material stock (reduce In Hand)
-        mat_obj = Material.query.filter_by(name=item.product_name).first()
+        mat_obj = Material.query.filter_by(name=item['product_name']).first()
         if mat_obj:
-            mat_obj.total = (mat_obj.total or 0) - item.qty
+            mat_obj.total = (mat_obj.total or 0) - item['qty']
 
     db.session.commit()
     msg = 'Direct sale added successfully'
     if create_invoice and inv:
         msg += f" — Invoice: {inv.invoice_no}"
     flash(msg, 'success')
+  except Exception as e:
+    db.session.rollback()
+    logging.error(f"Direct Sale Error: {str(e)}")
+    flash(f"Error processing sale: {str(e)}", "danger")
     return redirect(url_for('direct_sales_page'))
+    
+  # Success redirect
+  if manual_bill_no:
+      bill_ref = manual_bill_no
+  elif create_invoice and inv:
+      bill_ref = inv.invoice_no
+  elif sale.auto_bill_no:
+      bill_ref = sale.auto_bill_no
+  else:
+      bill_ref = f"CSH-{sale.id}" if category and category.lower() == 'cash' else f"DS-{sale.id}"
+
+  return redirect(url_for('direct_sales_page', download_bill=bill_ref))
 
 
 @app.route('/add_sale', methods=['POST'])
@@ -675,7 +869,68 @@ def edit_direct_sale(id):
 
     db.session.commit()
     flash('Direct sale updated', 'success')
-    return redirect(url_for('direct_sales_page'))
+    
+    bill_ref = sale.manual_bill_no if sale.manual_bill_no else (sale.auto_bill_no if sale.auto_bill_no else f"DS-{id}")
+    if not bill_ref and sale.category == 'Cash':
+         bill_ref = f"CSH-{id}"
+    return redirect(url_for('direct_sales_page', download_bill=bill_ref))
+
+
+@app.route('/void_transaction/<string:type>/<int:id>', methods=['POST'])
+@login_required
+def void_transaction(type, id):
+    if current_user.role != 'admin':
+        flash('Only admin can void transactions', 'danger')
+        return redirect(request.referrer or url_for('index'))
+    
+    if type == 'Entry':
+        entry = db.session.get(Entry, id)
+        if entry and not entry.is_void:
+            entry.is_void = True
+            mat = Material.query.filter_by(name=entry.material).first()
+            if mat:
+                if entry.type == 'IN': mat.total = (mat.total or 0) - entry.qty
+                elif entry.type == 'OUT': mat.total = (mat.total or 0) + entry.qty
+            flash('Entry voided and stock reversed', 'success')
+    
+    elif type == 'DirectSale':
+        sale = db.session.get(DirectSale, id)
+        if sale and not sale.is_void:
+            sale.is_void = True
+            # Find related entries
+            refs = [f"DS-{sale.id}", f"CSH-{sale.id}", f"UNBILLED-{sale.id}"]
+            if sale.manual_bill_no: refs.append(sale.manual_bill_no)
+            if sale.auto_bill_no: refs.append(sale.auto_bill_no)
+            
+            entries = Entry.query.filter(Entry.bill_no.in_(refs)).all()
+            for e in entries:
+                if not e.is_void:
+                    e.is_void = True
+                    mat = Material.query.filter_by(name=e.material).first()
+                    if mat:
+                        if e.type == 'IN': mat.total = (mat.total or 0) - e.qty
+                        elif e.type == 'OUT': mat.total = (mat.total or 0) + e.qty
+            
+            PendingBill.query.filter(PendingBill.bill_no.in_(refs)).update({'is_void': True}, synchronize_session=False)
+            flash('Sale voided', 'success')
+
+    elif type == 'Booking':
+        bk = db.session.get(Booking, id)
+        if bk and not bk.is_void:
+            bk.is_void = True
+            refs = [f"BK-{bk.id}"]
+            if bk.manual_bill_no: refs.append(bk.manual_bill_no)
+            PendingBill.query.filter(PendingBill.bill_no.in_(refs)).update({'is_void': True}, synchronize_session=False)
+            flash('Booking voided', 'success')
+
+    elif type == 'Payment':
+        pay = db.session.get(Payment, id)
+        if pay and not pay.is_void:
+            pay.is_void = True
+            flash('Payment voided', 'success')
+
+    db.session.commit()
+    return redirect(request.referrer or url_for('index'))
 
 
 # ==================== BILL ROUTES ====================
@@ -694,11 +949,66 @@ def view_bill(bill_no):
     invoice = Invoice.query.filter(
         (Invoice.invoice_no == bill_no)
     ).first()
+    
+    sale = DirectSale.query.filter(
+        (DirectSale.manual_bill_no == bill_no) | (DirectSale.auto_bill_no == bill_no)
+    ).first()
+
+    # Handle generated IDs (BK-ID, DS-ID, CSH-ID) if not found by direct match
+    if not (booking or payment or invoice or sale):
+        if bill_no.startswith('BK-'):
+            try:
+                booking = Booking.query.get(int(bill_no.split('-')[1]))
+            except: pass
+        elif bill_no.startswith('DS-') or bill_no.startswith('CSH-'):
+            try:
+                sale = DirectSale.query.get(int(bill_no.split('-')[1]))
+            except: pass
+        elif bill_no.startswith('PAY-'):
+            try:
+                payment = Payment.query.get(int(bill_no.split('-')[1]))
+            except: pass
+
+    client = None
+    client_balance = 0
+    previous_balance = 0
+    recent_deliveries = []
+
+    if booking or payment or invoice or sale:
+        bill_obj_temp = booking or payment or invoice or sale
+        c_name = getattr(bill_obj_temp, 'client_name', None)
+        c_code = getattr(bill_obj_temp, 'client_code', None)
+        if c_code: client = Client.query.filter_by(code=c_code).first()
+        if not client and c_name: client = Client.query.filter_by(name=c_name).first()
+
+        if client:
+            b_debit = db.session.query(func.sum(Booking.amount)).filter_by(client_name=client.name).scalar() or 0
+            b_credit = db.session.query(func.sum(Booking.paid_amount)).filter_by(client_name=client.name).scalar() or 0
+            p_credit = db.session.query(func.sum(Payment.amount)).filter_by(client_name=client.name).scalar() or 0
+            ds_debit = db.session.query(func.sum(DirectSale.amount)).filter(func.lower(DirectSale.client_name) == client.name.lower()).scalar() or 0
+            ds_credit = db.session.query(func.sum(DirectSale.paid_amount)).filter(func.lower(DirectSale.client_name) == client.name.lower()).scalar() or 0
+            
+            client_balance = (b_debit + ds_debit) - (b_credit + p_credit + ds_credit)
+            
+            effect = 0
+            if booking: effect = (booking.amount or 0) - (booking.paid_amount or 0)
+            elif sale: effect = (sale.amount or 0) - (sale.paid_amount or 0)
+            elif payment: effect = -(payment.amount or 0)
+            elif invoice: effect = invoice.balance or 0
+            
+            previous_balance = client_balance - effect
+            
+            recent_deliveries = Entry.query.filter(
+                (Entry.client_code == client.code) | (Entry.client == client.name),
+                Entry.type == 'OUT'
+            ).order_by(Entry.date.desc(), Entry.time.desc()).limit(5).all()
 
     if booking:
-        return render_template('view_bill.html', bill=booking, type='Booking', items=booking.items)
+        return render_template('view_bill.html', bill=booking, type='Booking', items=booking.items, client=client, client_balance=client_balance, previous_balance=previous_balance, recent_deliveries=recent_deliveries)
     if payment:
-        return render_template('view_bill.html', bill=payment, type='Payment', items=[])
+        return render_template('view_bill.html', bill=payment, type='Payment', items=[], client=client, client_balance=client_balance, previous_balance=previous_balance, recent_deliveries=recent_deliveries)
+    if sale:
+        return render_template('view_bill.html', bill=sale, type='DirectSale', items=sale.items, client=client, client_balance=client_balance, previous_balance=previous_balance, recent_deliveries=recent_deliveries)
     if invoice:
         invoice.amount = invoice.total_amount
         invoice.paid_amount = (invoice.total_amount - invoice.balance) if invoice.total_amount and invoice.balance else 0
@@ -710,7 +1020,7 @@ def view_bill(bill_no):
             items = [{'name': it.product_name, 'qty': it.qty} for it in ds.items]
         if not items and getattr(invoice, 'entries', None):
             items = [{'name': e.material, 'qty': e.qty} for e in invoice.entries]
-        return render_template('view_bill.html', bill=invoice, type='Invoice', items=items)
+        return render_template('view_bill.html', bill=invoice, type='Invoice', items=items, client=client, client_balance=client_balance, previous_balance=previous_balance, recent_deliveries=recent_deliveries)
 
     flash('Bill not found', 'danger')
     return redirect(url_for('index'))
@@ -719,27 +1029,98 @@ def view_bill(bill_no):
 @app.route('/download_invoice/<path:bill_no>')
 @login_required
 def download_invoice(bill_no):
-    inv = Invoice.query.filter_by(invoice_no=bill_no).first()
-    if not inv:
-        flash('Invoice not found', 'danger')
+    # Reuse logic to find bill
+    booking = Booking.query.filter((Booking.manual_bill_no == bill_no)).first()
+    payment = Payment.query.filter((Payment.manual_bill_no == bill_no)).first()
+    invoice = Invoice.query.filter((Invoice.invoice_no == bill_no)).first()
+    sale = DirectSale.query.filter((DirectSale.manual_bill_no == bill_no) | (DirectSale.auto_bill_no == bill_no)).first()
+
+    if not (booking or payment or invoice or sale):
+        if bill_no.startswith('BK-'):
+            try: booking = Booking.query.get(int(bill_no.split('-')[1]))
+            except: pass
+        elif bill_no.startswith('DS-') or bill_no.startswith('CSH-'):
+            try: sale = DirectSale.query.get(int(bill_no.split('-')[1]))
+            except: pass
+        elif bill_no.startswith('PAY-'):
+            try: payment = Payment.query.get(int(bill_no.split('-')[1]))
+            except: pass
+
+    bill_obj = None
+    bill_type = ''
+    items = []
+
+    client = None
+    client_balance = 0
+    previous_balance = 0
+    recent_deliveries = []
+
+    if booking or payment or invoice or sale:
+        bill_obj_temp = booking or payment or invoice or sale
+        c_name = getattr(bill_obj_temp, 'client_name', None)
+        c_code = getattr(bill_obj_temp, 'client_code', None)
+        if c_code: client = Client.query.filter_by(code=c_code).first()
+        if not client and c_name: client = Client.query.filter_by(name=c_name).first()
+
+        if client:
+            b_debit = db.session.query(func.sum(Booking.amount)).filter_by(client_name=client.name).scalar() or 0
+            b_credit = db.session.query(func.sum(Booking.paid_amount)).filter_by(client_name=client.name).scalar() or 0
+            p_credit = db.session.query(func.sum(Payment.amount)).filter_by(client_name=client.name).scalar() or 0
+            ds_debit = db.session.query(func.sum(DirectSale.amount)).filter(func.lower(DirectSale.client_name) == client.name.lower()).scalar() or 0
+            ds_credit = db.session.query(func.sum(DirectSale.paid_amount)).filter(func.lower(DirectSale.client_name) == client.name.lower()).scalar() or 0
+            
+            client_balance = (b_debit + ds_debit) - (b_credit + p_credit + ds_credit)
+            
+            effect = 0
+            if booking: effect = (booking.amount or 0) - (booking.paid_amount or 0)
+            elif sale: effect = (sale.amount or 0) - (sale.paid_amount or 0)
+            elif payment: effect = -(payment.amount or 0)
+            elif invoice: effect = invoice.balance or 0
+            
+            previous_balance = client_balance - effect
+            
+            recent_deliveries = Entry.query.filter(
+                (Entry.client_code == client.code) | (Entry.client == client.name),
+                Entry.type == 'OUT'
+            ).order_by(Entry.date.desc(), Entry.time.desc()).limit(5).all()
+
+    if booking:
+        bill_obj = booking
+        bill_type = 'Booking'
+        items = booking.items
+    elif payment:
+        bill_obj = payment
+        bill_type = 'Payment'
+    elif sale:
+        bill_obj = sale
+        bill_type = 'DirectSale'
+        items = sale.items
+    elif invoice:
+        bill_obj = invoice
+        bill_type = 'Invoice'
+        invoice.amount = invoice.total_amount
+        invoice.paid_amount = (invoice.total_amount - invoice.balance) if invoice.total_amount and invoice.balance else 0
+        invoice.date_posted = datetime.combine(invoice.date, datetime.min.time()) if invoice.date else None
+        if getattr(invoice, 'direct_sales', None) and invoice.direct_sales:
+            ds = invoice.direct_sales[0]
+            items = [{'name': it.product_name, 'qty': it.qty} for it in ds.items]
+        if not items and getattr(invoice, 'entries', None):
+            items = [{'name': e.material, 'qty': e.qty} for e in invoice.entries]
+
+    if not bill_obj:
+        flash('Bill not found for download', 'danger')
         return redirect(url_for('index'))
 
-    inv.amount = inv.total_amount
-    inv.paid_amount = (inv.total_amount - inv.balance) if inv.total_amount and inv.balance else 0
-    inv.date_posted = datetime.combine(inv.date, datetime.min.time()) if inv.date else None
-
-    items = []
-    if getattr(inv, 'direct_sales', None) and inv.direct_sales:
-        ds = inv.direct_sales[0]
-        items = [{'name': it.product_name, 'qty': it.qty} for it in ds.items]
-    if not items and getattr(inv, 'entries', None):
-        items = [{'name': e.material, 'qty': e.qty} for e in inv.entries]
-
-    rendered = render_template('view_bill.html', bill=inv, type='Invoice', items=items)
-    response = make_response(rendered)
-    response.headers['Content-Disposition'] = f'attachment; filename=invoice-{inv.invoice_no}.html'
-    response.headers['Content-Type'] = 'text/html; charset=utf-8'
-    return response
+    rendered = render_template('view_bill.html', bill=bill_obj, type=bill_type, items=items, client=client, client_balance=client_balance, previous_balance=previous_balance, recent_deliveries=recent_deliveries)
+    
+    try:
+        from flask_weasyprint import HTML, render_pdf
+        return render_pdf(HTML(string=rendered), download_name=f'{bill_type}-{bill_no}.pdf')
+    except ImportError:
+        response = make_response(rendered)
+        response.headers['Content-Disposition'] = f'attachment; filename={bill_type}-{bill_no}.html'
+        response.headers['Content-Type'] = 'text/html; charset=utf-8'
+        return response
 
 
 @app.route('/delete_bill/<string:type>/<int:id>')
@@ -760,19 +1141,6 @@ def delete_bill(type, id):
                 PendingBill.query.filter_by(bill_no=bill_no, client_code=client.code).delete()
     elif type == 'Payment':
         bill = Payment.query.get(id)
-    elif type == 'Delivery':
-        from models import GRN
-        bill = GRN.query.get(id)
-        if bill:
-            # Revert stock
-            for item in bill.items:
-                mat = Material.query.filter_by(name=item.product_name).first()
-                if mat:
-                    mat.total = (mat.total or 0) - item.qty
-            db.session.delete(bill)
-            db.session.commit()
-            flash('Delivery (GRN) deleted and stock reverted', 'success')
-            return redirect(url_for('grn_page'))
 
     if bill:
         db.session.delete(bill)
@@ -823,16 +1191,19 @@ def financial_ledger(client_id):
     client = Client.query.get_or_404(client_id)
     
     # 1. Fetch Pending Bills
-    pending_bills = PendingBill.query.filter_by(client_code=client.code).order_by(PendingBill.id.desc()).all()
+    pending_bills = PendingBill.query.filter_by(client_code=client.code, is_void=False).order_by(PendingBill.id.desc()).all()
     
     # 2. Financial Ledger
     bookings = Booking.query.filter_by(client_name=client.name).all()
     payments = Payment.query.filter_by(client_name=client.name).all()
-    direct_sales = DirectSale.query.filter_by(client_name=client.name).all()
+    # Use case-insensitive match for Direct Sales to ensure we catch them all
+    direct_sales = DirectSale.query.filter(func.lower(DirectSale.client_name) == client.name.lower()).all()
 
+    # Financial History (Bookings, Payments, Direct Sales) - NO Material Entries
     financial_history = []
     
     for b in bookings:
+        if b.is_void: continue
         debit = b.amount or 0
         credit = b.paid_amount or 0
         financial_history.append({
@@ -846,6 +1217,7 @@ def financial_ledger(client_id):
         })
     
     for p in payments:
+        if p.is_void: continue
         credit = p.amount or 0
         financial_history.append({
             'date': p.date_posted,
@@ -858,17 +1230,21 @@ def financial_ledger(client_id):
         })
     
     for s in direct_sales:
+        if s.is_void: continue
         debit = s.amount or 0
         credit = s.paid_amount or 0
-        financial_history.append({
-            'date': s.date_posted,
-            'description': 'Direct Sale',
-            'bill_no': s.manual_bill_no,
-            'debit': debit,
-            'credit': credit,
-            'type': 'DirectSale',
-            'id': s.id
-        })
+        # A Direct Sale with no financial value is just a dispatch, not a financial event.
+        # It should only appear in the material ledger.
+        if debit > 0 or credit > 0:
+            financial_history.append({
+                'date': s.date_posted,
+                'description': 'Direct Sale',
+                'bill_no': s.manual_bill_no or s.auto_bill_no,
+                'debit': debit,
+                'credit': credit,
+                'type': 'DirectSale',
+                'id': s.id
+            })
     
     # Sort by date (oldest first)
     financial_history.sort(key=lambda x: x['date'] or datetime.min)
@@ -879,20 +1255,38 @@ def financial_ledger(client_id):
         running_balance += (item['debit'] - item['credit'])
         item['balance'] = running_balance
     
-    # Reverse for display (newest first)
-    financial_history.reverse()
-
     # 3. Material Ledger
     deliveries = Entry.query.filter(
         (Entry.client_code == client.code) | (Entry.client == client.name),
         Entry.type == 'OUT'
-    ).order_by(Entry.date.desc(), Entry.time.desc()).all()
+    ).order_by(Entry.date.asc(), Entry.time.asc()).all()
 
     material_history = []
     seen_material_bills = set()
     
+    # Add Bookings to Material Ledger
+    bookings = Booking.query.filter_by(client_name=client.name).order_by(Booking.date_posted.asc()).all()
+    for b in bookings:
+        if b.is_void: continue
+        for item in b.items:
+            material_history.append({
+                'date': b.date_posted.strftime('%Y-%m-%d') if b.date_posted else (b.created_at[:10] if b.created_at else ''),
+                'material': item.material_name,
+                'qty_added': item.qty,
+                'qty_dispatched': 0,
+                'bill_no': b.manual_bill_no,
+                'nimbus_no': 'Booking',
+                'type': 'Booking'
+            })
+            
     # Process Deliveries/Entries
     for d in deliveries:
+        if d.is_void: continue
+        # Skip Direct Sales that are not Booking Deliveries (Standalone Sales)
+        # These are "Cash/Credit & Carry" and shouldn't clutter the Booking Ledger
+        if d.nimbus_no == 'Direct Sale' and d.client_category != 'Booking Delivery':
+            continue
+
         material_history.append({
             'date': d.date,
             'material': d.material,
@@ -907,24 +1301,19 @@ def financial_ledger(client_id):
         if d.auto_bill_no:
             seen_material_bills.add(d.auto_bill_no)
 
-    # Add Bookings to Material Ledger
-    bookings = Booking.query.filter_by(client_name=client.name).all()
-    for b in bookings:
-        for item in b.items:
-            material_history.append({
-                'date': b.date_posted.strftime('%Y-%m-%d') if b.date_posted else (b.created_at[:10] if b.created_at else ''),
-                'material': item.material_name,
-                'qty_added': item.qty,
-                'qty_dispatched': 0,
-                'bill_no': b.manual_bill_no,
-                'nimbus_no': 'Booking',
-                'type': 'Booking'
-            })
-
     for s in direct_sales:
+        if s.is_void: continue
         bill_ref = s.manual_bill_no or s.auto_bill_no
         if bill_ref not in seen_material_bills:
+            # Also skip standalone Direct Sales in this fallback loop
+            if s.category != 'Booking Customer':
+                continue
+
             for item in s.items:
+                # Skip non-booked items (Price > 0) in mixed transactions
+                if item.price_at_time > 0:
+                    continue
+
                 material_history.append({
                     'date': s.date_posted.strftime('%Y-%m-%d') if s.date_posted else '',
                     'material': item.product_name,
@@ -936,7 +1325,15 @@ def financial_ledger(client_id):
                 })
 
     # Sort by date (oldest first)
-    material_history.sort(key=lambda x: x['date'] or '')
+    # Sort by date, then by type priority (Booking/Add before Dispatch) to ensure balance doesn't dip
+    def mat_sort_key(x):
+        d = x['date'] or ''
+        t = x['type']
+        # Priority: Booking(0), Direct Sale(1), Dispatch(2)
+        p = 2 if t == 'Dispatch' else (0 if t == 'Booking' else 1)
+        return (d, p)
+    
+    material_history.sort(key=mat_sort_key)
 
     # Running balance per material
     mat_balances = {}
@@ -945,8 +1342,6 @@ def financial_ledger(client_id):
         if mat not in mat_balances: mat_balances[mat] = 0
         mat_balances[mat] += (item.get('qty_added', 0) - item.get('qty_dispatched', 0))
         item['balance'] = mat_balances[mat]
-
-    material_history.reverse()
 
     # Calculate totals
     total_debit = sum(item['debit'] for item in financial_history)
@@ -969,52 +1364,153 @@ def financial_ledger_details(client_id):
     return redirect(url_for('financial_ledger', client_id=client_id))
 
 
+@app.route('/decision_ledger')
+@login_required
+def decision_ledger():
+    # --- Part 1: Per-Client Financial Summary ---
+    clients = Client.query.filter_by(is_active=True).order_by(Client.name.asc()).all()
+    client_financial_summary = []
+
+    for client in clients:
+        # Note: These sums need to filter is_void=False. 
+        b_debit = db.session.query(func.sum(Booking.amount)).filter_by(client_name=client.name).scalar() or 0
+        b_credit = db.session.query(func.sum(Booking.paid_amount)).filter_by(client_name=client.name).scalar() or 0
+        p_credit = db.session.query(func.sum(Payment.amount)).filter_by(client_name=client.name).scalar() or 0
+        ds_debit = db.session.query(func.sum(DirectSale.amount)).filter(func.lower(DirectSale.client_name) == client.name.lower()).scalar() or 0
+        ds_credit = db.session.query(func.sum(DirectSale.paid_amount)).filter(func.lower(DirectSale.client_name) == client.name.lower()).scalar() or 0
+        
+        total_debit = b_debit + ds_debit
+        # Re-calculate with void filter
+        b_debit = db.session.query(func.sum(Booking.amount)).filter_by(client_name=client.name, is_void=False).scalar() or 0
+        b_credit = db.session.query(func.sum(Booking.paid_amount)).filter_by(client_name=client.name, is_void=False).scalar() or 0
+        p_credit = db.session.query(func.sum(Payment.amount)).filter_by(client_name=client.name, is_void=False).scalar() or 0
+        ds_debit = db.session.query(func.sum(DirectSale.amount)).filter(func.lower(DirectSale.client_name) == client.name.lower(), DirectSale.is_void==False).scalar() or 0
+        ds_credit = db.session.query(func.sum(DirectSale.paid_amount)).filter(func.lower(DirectSale.client_name) == client.name.lower(), DirectSale.is_void==False).scalar() or 0
+        
+        total_debit = b_debit + ds_debit
+        total_credit = b_credit + p_credit + ds_credit
+        balance = total_debit - total_credit
+
+        # --- Per-Client Material Summary ---
+        booked_res = db.session.query(BookingItem.material_name, func.sum(BookingItem.qty))\
+            .join(Booking).filter(Booking.client_name == client.name)\
+            .group_by(BookingItem.material_name).all()
+        booked_map = {r[0]: (r[1] or 0) for r in booked_res}
+        
+        entries = Entry.query.filter(
+            (Entry.client_code == client.code) | (Entry.client == client.name),
+            Entry.type == 'OUT'
+        ).filter(Entry.is_void == False).all()
+        
+        dispatched_map = {}
+        for e in entries:
+            dispatched_map[e.material] = dispatched_map.get(e.material, 0) + e.qty
+            
+        materials_summary = []
+        all_mats = set(booked_map.keys()) | set(dispatched_map.keys())
+        
+        for m in sorted(all_mats):
+            b = booked_map.get(m, 0)
+            d = dispatched_map.get(m, 0)
+            rem = b - d
+            if b > 0 or d > 0 or rem != 0:
+                materials_summary.append({
+                    'name': m,
+                    'booked': b,
+                    'dispatched': d,
+                    'remaining': rem
+                })
+
+        client_financial_summary.append({
+            'client': client,
+            'financial': {
+                'debit': total_debit,
+                'credit': total_credit,
+                'balance': balance
+            },
+            'materials': materials_summary
+        })
+
+    # --- Part 2: Overall Material Summary ---
+    total_booked_q = db.session.query(
+        BookingItem.material_name, 
+        func.sum(BookingItem.qty).label('total_booked')
+    ).join(Booking).filter(Booking.is_void == False).group_by(BookingItem.material_name).all()
+    total_booked_map = {r.material_name: r.total_booked for r in total_booked_q}
+
+    all_dispatches = db.session.query(
+        Entry.material,
+        func.sum(Entry.qty).label('total_dispatched')
+    ).filter(
+        Entry.type == 'OUT', Entry.is_void == False
+    ).filter(
+    ).group_by(Entry.material).all()
+    total_dispatched_map = {r.material: r.total_dispatched for r in all_dispatches}
+
+    all_materials = set(total_booked_map.keys()) | set(total_dispatched_map.keys())
+    overall_material_summary = []
+    for m in sorted(list(all_materials)):
+        booked = total_booked_map.get(m, 0)
+        dispatched = total_dispatched_map.get(m, 0)
+        overall_material_summary.append({
+            'name': m,
+            'booked': booked,
+            'dispatched': dispatched,
+            'remaining': booked - dispatched
+        })
+        
+    return render_template('decision_ledger.html', 
+                           overall_material_summary=overall_material_summary,
+                           data=client_financial_summary)
+
+
 @app.route('/material_ledger/<int:mat_id>')
 @login_required
 def material_ledger_page(mat_id):
     material = Material.query.get_or_404(mat_id)
-    stock_ins = Entry.query.filter_by(material=material.name, type='IN').all()
-    stock_outs = Entry.query.filter_by(material=material.name, type='OUT').all()
-    sales = DirectSaleItem.query.filter_by(product_name=material.name).all()
+    
+    # Fetch all entries
+    entries = Entry.query.filter_by(material=material.name, is_void=False).all()
 
-    all_transactions = []
-    
-    for e in stock_ins:
-        entry_date = e.date if not isinstance(e.date, str) else datetime.strptime(e.date, '%Y-%m-%d')
-        all_transactions.append({
-            'date': entry_date,
-            'item': e.material,
-            'bill_no': e.bill_no or e.auto_bill_no or '',
-            'add': e.qty,
-            'delivered': 0,
-            'description': 'Stock In'
-        })
-    
-    for e in stock_outs:
-        entry_date = e.date if not isinstance(e.date, str) else datetime.strptime(e.date, '%Y-%m-%d')
-        all_transactions.append({
-            'date': entry_date,
-            'item': e.material,
-            'bill_no': e.bill_no or e.auto_bill_no or '',
-            'add': 0,
-            'delivered': e.qty,
-            'description': f'Dispatch to {e.client or "Unknown"}'
-        })
+    # Helper to parse date for sorting
+    def parse_entry_datetime(e):
+        d_str = e.date or ""
+        t_str = e.time or "00:00:00"
+        try:
+            return datetime.strptime(f"{d_str} {t_str}", '%Y-%m-%d %H:%M:%S')
+        except ValueError:
+            pass
+        try:
+            return datetime.strptime(f"{d_str} {t_str}", '%d-%m-%Y %H:%M:%S')
+        except ValueError:
+            pass
+        return datetime.min
 
-    all_transactions.sort(key=lambda x: x['date'])
-    
+    # Sort by Date/Time, then ID to ensure stable sort
+    entries.sort(key=lambda x: (parse_entry_datetime(x), x.id))
+
     history = []
     running_balance = 0
-    for t in all_transactions:
-        running_balance += (t['add'] - t['delivered'])
+    
+    for e in entries:
+        qty_add = e.qty if e.type == 'IN' else 0
+        qty_delivered = e.qty if e.type == 'OUT' else 0
+        running_balance += (qty_add - qty_delivered)
+        
+        date_display = e.date
+        try:
+            dt = datetime.strptime(e.date, '%Y-%m-%d')
+            date_display = dt.strftime('%d-%m-%Y')
+        except (ValueError, TypeError):
+            pass
+
         history.append({
-            'date': t['date'].strftime('%d-%m-%Y') if hasattr(t['date'], 'strftime') else t['date'],
-            'item': t['item'],
-            'bill_no': t['bill_no'],
-            'add': t['add'],
-            'delivered': t['delivered'],
-            'balance': running_balance,
-            'description': t['description']
+            'date': date_display,
+            'item': e.material,
+            'bill_no': e.bill_no or e.auto_bill_no or '',
+            'add': qty_add,
+            'delivered': qty_delivered,
+            'balance': running_balance
         })
 
     return render_template('material_ledger.html',
@@ -1028,7 +1524,7 @@ def client_ledger(id):
     client = db.session.get(Client, id)
     if client:
         page = request.args.get('page', 1, type=int)
-        pagination = Entry.query.filter_by(client=client.name).order_by(
+        pagination = Entry.query.filter_by(client=client.name, is_void=False).order_by(
             Entry.date.desc()).paginate(page=page, per_page=10)
         summary_query = db.session.query(
             Entry.material,
@@ -1054,14 +1550,6 @@ def client_ledger(id):
 
 # ==================== INVENTORY ROUTES ====================
 
-@app.route('/receiving')
-@login_required
-def receiving():
-    mats = Material.query.order_by(Material.name.asc()).all()
-    today = date.today().strftime('%Y-%m-%d')
-    return render_template('receiving.html', materials=mats, today_date=today)
-
-
 @app.route('/dispatching')
 @login_required
 def dispatching():
@@ -1077,19 +1565,40 @@ def dispatching():
 @app.route('/api/client_booking_status/<client_code>')
 @login_required
 def api_client_booking_status(client_code):
-    from models import Booking, BookingItem
-    bookings = Booking.query.filter_by(client_code=client_code).all()
+    client = Client.query.filter_by(code=client_code).first()
+    if not client:
+        return jsonify([])
+
+    # Get bookings by client name (Booking model uses name)
+    bookings = Booking.query.filter_by(client_name=client.name, is_void=False).all()
     booking_ids = [b.id for b in bookings]
-    items = BookingItem.query.filter(BookingItem.booking_id.in_(booking_ids)).all()
+    
+    booked_totals = {}
+    if booking_ids:
+        items = BookingItem.query.filter(BookingItem.booking_id.in_(booking_ids)).all() # BookingItem doesn't have is_void, parent Booking does
+        for item in items:
+            booked_totals[item.material_name] = booked_totals.get(item.material_name, 0) + item.qty
+
+    # Get delivered totals from Entry (OUT)
+    entries = Entry.query.filter(
+        (Entry.client_code == client_code) | (Entry.client == client.name),
+        Entry.type == 'OUT'
+    ).filter(Entry.is_void == False).all()
+    
+    delivered_totals = {}
+    for e in entries:
+        delivered_totals[e.material] = delivered_totals.get(e.material, 0) + e.qty
     
     status_data = []
-    for item in items:
+    for mat, booked_qty in booked_totals.items():
+        delivered_qty = delivered_totals.get(mat, 0)
         status_data.append({
-            'material': item.product_name,
-            'booked': item.qty,
-            'delivered': item.delivered_qty or 0,
-            'balance': item.qty - (item.delivered_qty or 0)
+            'material': mat,
+            'booked': booked_qty,
+            'delivered': delivered_qty,
+            'balance': booked_qty - delivered_qty
         })
+        
     return jsonify(status_data)
 
 @app.route('/add_record', methods=['POST'])
@@ -1121,6 +1630,37 @@ def add_record():
         flash('Unknown client: For cash customers, please use the Direct Sale form.', 'warning')
         return redirect(url_for('direct_sales_page', client_name=client_name or ''))
 
+    if entry_type == 'OUT' and client_obj:
+        mat_name = request.form.get('material', '')
+        try:
+            req_qty = float(request.form.get('qty', 0) or 0)
+        except ValueError:
+            req_qty = 0
+            
+        booked = db.session.query(func.sum(BookingItem.qty))\
+            .join(Booking)\
+            .filter(Booking.client_name == client_obj.name)\
+            .filter(BookingItem.material_name == mat_name, Booking.is_void == False)\
+            .scalar() or 0
+            
+        dispatched = db.session.query(func.sum(Entry.qty))\
+            .filter((Entry.client_code == client_obj.code) | (Entry.client == client_obj.name))\
+            .filter(Entry.material == mat_name, Entry.is_void == False)\
+            .filter(Entry.type == 'OUT')\
+            .filter(not_(and_(Entry.nimbus_no == 'Direct Sale', Entry.client_category != 'Booking Delivery')))\
+            .scalar() or 0
+            
+        remaining = booked - dispatched
+        
+        if req_qty > remaining:
+            flash(f"Cannot dispatch {req_qty} bags. Only {remaining} bags available from booking. (Booked: {booked}, Dispatched: {dispatched})", 'danger')
+            return redirect(url_for('dispatching'))
+
+    # Auto-mark as Booking Delivery if fulfilling a booking
+    nimbus_no_val = request.form.get('nimbus_no', '').strip()
+    if entry_type == 'OUT' and client_obj and not nimbus_no_val:
+        nimbus_no_val = "Booking Delivery"
+
     entry = Entry(date=entry_date,
                   time=now.strftime('%H:%M:%S'),
                   type=entry_type,
@@ -1129,10 +1669,16 @@ def add_record():
                   client_code=client_code,
                   qty=float(request.form.get('qty', 0) or 0),
                   bill_no=request.form.get('bill_no', '').strip(),
-                  nimbus_no=request.form.get('nimbus_no', '').strip(),
-                  created_by=current_user.username)
+                  nimbus_no=nimbus_no_val,
+                  created_by=current_user.username,
+                  client_category=client_obj.category if client_obj else None)
     db.session.add(entry)
     db.session.flush()
+    
+    # Update Material stock (reduce In Hand)
+    mat_obj = Material.query.filter_by(name=entry.material).first()
+    if mat_obj:
+        mat_obj.total = (mat_obj.total or 0) - entry.qty
 
     hv = request.form.get('has_bill')
     has_bill = True if hv is None else hv in ['on', '1', 'true', 'True']
@@ -1151,7 +1697,9 @@ def add_record():
     invoice_no = None
     inv = None
     
-    if has_bill and (create_invoice or entry.bill_no):
+    # Only create Invoice for non-OUT entries (e.g. IN/Receiving)
+    # For OUT entries (Dispatching), we are fulfilling bookings which already have financial records.
+    if entry_type != 'OUT' and has_bill and (create_invoice or entry.bill_no):
         if entry.bill_no:
             invoice_no = entry.bill_no
             is_manual = True
@@ -1193,39 +1741,9 @@ def add_record():
             db.session.flush()
         entry.invoice_id = inv.id
 
-    # Pending Bill logic for OUT entries
-    if entry_type == 'OUT':
-        if has_bill and (entry.bill_no or entry.auto_bill_no):
-            bill_no_val = entry.bill_no or entry.auto_bill_no
-
-            existing_pb = PendingBill.query.filter_by(bill_no=bill_no_val, client_code=entry.client_code).first()
-            if existing_pb:
-                existing_pb.client_name = entry.client
-                existing_pb.amount = amount
-                existing_pb.reason = f"Dispatch: {entry.material}"
-                existing_pb.created_at = datetime.now().strftime('%Y-%m-%d %H:%M')
-                existing_pb.created_by = current_user.username
-            else:
-                db.session.add(PendingBill(
-                    client_code=entry.client_code,
-                    client_name=entry.client,
-                    bill_no=bill_no_val,
-                    amount=amount,
-                    reason=f"Dispatch: {entry.material}",
-                    created_at=datetime.now().strftime('%Y-%m-%d %H:%M'),
-                    created_by=current_user.username
-                ))
-        elif request.form.get('track_as_cash'):
-            db.session.add(PendingBill(
-                client_code=entry.client_code,
-                client_name=entry.client,
-                bill_no='',
-                amount=amount,
-                reason=f"Cash Delivery: {entry.material}",
-                is_cash=True,
-                created_at=datetime.now().strftime('%Y-%m-%d %H:%M'),
-                created_by=current_user.username
-            ))
+    # Pending Bill logic for OUT entries REMOVED
+    # Dispatching (OUT) is now strictly for booking fulfillment, so no new financial bills are created.
+    # The financial obligation is tracked via the original Booking and its PendingBill.
 
     db.session.commit()
     flash("Record Saved", "success")
@@ -1246,6 +1764,8 @@ def edit_entry(id):
 
     old_bill_no = e.bill_no
     old_client_code = e.client_code
+    old_qty = e.qty
+    old_material = e.material
 
     e.date = request.form.get('date') or e.date
     e.time = request.form.get('time') or e.time
@@ -1271,55 +1791,26 @@ def edit_entry(id):
     e.bill_no = request.form.get('bill_no', '').strip() or None
     e.nimbus_no = request.form.get('nimbus_no', '').strip() or None
 
-    # Synchronize PendingBill
+    # Update Material Totals if qty or material changed
+    if e.type == 'OUT' or e.type == 'IN':
+        # Revert old qty from old material
+        old_mat_obj = Material.query.filter_by(name=old_material).first()
+        if old_mat_obj:
+            if e.type == 'IN': old_mat_obj.total -= old_qty
+            else: old_mat_obj.total += old_qty
+            
+        # Apply new qty to new material
+        new_mat_obj = Material.query.filter_by(name=e.material).first()
+        if new_mat_obj:
+            if e.type == 'IN': new_mat_obj.total += e.qty
+            else: new_mat_obj.total -= e.qty
+
+    # Synchronize PendingBill - REMOVED DANGEROUS LOGIC
+    # We do NOT want to auto-update PendingBills for OUT entries here because
+    # it risks overwriting Booking bills with partial dispatch amounts.
+    # Only update bill reference if changed.
     if e.type == 'OUT':
-        if not e.bill_no and old_bill_no:
-            PendingBill.query.filter_by(bill_no=old_bill_no, client_code=old_client_code).delete()
-        else:
-            pb = None
-            if e.bill_no:
-                pb = PendingBill.query.filter_by(bill_no=e.bill_no, client_code=e.client_code).first()
-            if not pb and old_bill_no:
-                pb = PendingBill.query.filter_by(bill_no=old_bill_no, client_code=old_client_code).first()
-
-            material_obj = Material.query.filter_by(name=e.material).first()
-            unit_price = (material_obj.unit_price if material_obj else 0) or 0
-            amount = float(e.qty) * float(unit_price)
-
-            if pb:
-                pb.bill_no = e.bill_no or pb.bill_no
-                pb.client_name = e.client
-                pb.client_code = e.client_code
-                pb.amount = amount
-                pb.reason = f"Dispatch: {e.material}"
-            elif e.bill_no:
-                db.session.add(PendingBill(
-                    client_code=e.client_code,
-                    client_name=e.client,
-                    bill_no=e.bill_no,
-                    amount=amount,
-                    reason=f"Dispatch: {e.material}",
-                    created_at=datetime.now().strftime('%Y-%m-%d %H:%M'),
-                    created_by=current_user.username
-                ))
-
-            if e.bill_no:
-                inv = Invoice.query.filter_by(invoice_no=e.bill_no, client_code=e.client_code).first()
-                if not inv:
-                    inv = Invoice(client_code=e.client_code,
-                                  client_name=e.client,
-                                  invoice_no=e.bill_no,
-                                  is_manual=True,
-                                  date=datetime.strptime(e.date, '%Y-%m-%d').date() if e.date else datetime.now().date(),
-                                  total_amount=amount,
-                                  balance=amount,
-                                  created_at=datetime.now().strftime('%Y-%m-%d %H:%M'),
-                                  created_by=current_user.username)
-                    db.session.add(inv)
-                    db.session.flush()
-                e.invoice_id = inv.id
-            else:
-                e.invoice_id = None
+        pass 
 
     db.session.commit()
     flash('Entry Updated', 'success')
@@ -1346,6 +1837,12 @@ def delete_entry(id):
 
     if e.type == 'OUT' and e.bill_no:
         PendingBill.query.filter_by(bill_no=e.bill_no, client_code=e.client_code).delete()
+
+    # Revert Material Stock
+    mat_obj = Material.query.filter_by(name=e.material).first()
+    if mat_obj:
+        if e.type == 'IN': mat_obj.total = (mat_obj.total or 0) - e.qty
+        elif e.type == 'OUT': mat_obj.total = (mat_obj.total or 0) + e.qty
 
     d = e.date
     db.session.delete(e)
@@ -1380,7 +1877,7 @@ def tracking():
     if has_filter:
         query = Entry.query
         if s:
-            query = query.filter(Entry.date >= s)
+            query = query.filter(Entry.date >= s) # Show voided in tracking? Yes, but maybe filterable. For now show all.
         if end:
             query = query.filter(Entry.date <= end)
         if cl:
@@ -1390,15 +1887,22 @@ def tracking():
         if bill_no:
             query = query.filter(db.or_(Entry.bill_no.ilike(f'%{bill_no}%'), Entry.auto_bill_no.ilike(f'%{bill_no}%')))
         if category:
-            query = query.join(Client, Entry.client_code == Client.code).filter(Client.category == category)
+            query = query.outerjoin(Client, Entry.client_code == Client.code).filter(
+                or_(Entry.client_category == category, Client.category == category)
+            )
         if type_filter:
             query = query.filter(Entry.type == type_filter)
         if has_bill_filter == '1':
-            query = query.filter(db.or_(Entry.bill_no != None, Entry.auto_bill_no != None)).filter(db.or_(Entry.bill_no != '', Entry.auto_bill_no != ''))
+            query = query.filter(db.or_(Entry.bill_no != None, Entry.auto_bill_no != None))\
+                         .filter(db.or_(Entry.bill_no != '', Entry.auto_bill_no != ''))\
+                         .filter(db.or_(Entry.bill_no == None, db.not_(Entry.bill_no.like('UNBILLED%'))))
         if has_bill_filter == '0':
-            query = query.filter(db.and_(
-                db.or_(Entry.bill_no == None, Entry.bill_no == ''),
-                db.or_(Entry.auto_bill_no == None, Entry.auto_bill_no == '')
+            query = query.filter(db.or_(
+                db.and_(
+                    db.or_(Entry.bill_no == None, Entry.bill_no == ''),
+                    db.or_(Entry.auto_bill_no == None, Entry.auto_bill_no == '')
+                ),
+                Entry.bill_no.like('UNBILLED%')
             ))
         if search:
             query = query.filter(
@@ -1417,7 +1921,9 @@ def tracking():
             func.sum(case((Entry.type == 'IN', Entry.qty), else_=-Entry.qty)).label('net'))
 
         if category:
-            base_query = base_query.join(Client, Entry.client_code == Client.code).filter(Client.category == category)
+            base_query = base_query.outerjoin(Client, Entry.client_code == Client.code).filter(
+                or_(Entry.client_category == category, Client.category == category)
+            )
         if s:
             base_query = base_query.filter(Entry.date >= s)
         if end:
@@ -1426,6 +1932,29 @@ def tracking():
             base_query = base_query.filter(Entry.client == cl)
         if m:
             base_query = base_query.filter(Entry.material == m)
+        if bill_no:
+            base_query = base_query.filter(db.or_(Entry.bill_no.ilike(f'%{bill_no}%'), Entry.auto_bill_no.ilike(f'%{bill_no}%')))
+        if type_filter:
+            base_query = base_query.filter(Entry.type == type_filter)
+        if has_bill_filter == '1':
+            base_query = base_query.filter(db.or_(Entry.bill_no != None, Entry.auto_bill_no != None))\
+                         .filter(db.or_(Entry.bill_no != '', Entry.auto_bill_no != ''))\
+                         .filter(db.or_(Entry.bill_no == None, db.not_(Entry.bill_no.like('UNBILLED%'))))
+        if has_bill_filter == '0':
+            base_query = base_query.filter(db.or_(
+                db.and_(
+                    db.or_(Entry.bill_no == None, Entry.bill_no == ''),
+                    db.or_(Entry.auto_bill_no == None, Entry.auto_bill_no == '')
+                ),
+                Entry.bill_no.like('UNBILLED%')
+            ))
+        if search:
+            base_query = base_query.filter(
+                db.or_(Entry.material.ilike(f'%{search}%'),
+                       Entry.client.ilike(f'%{search}%'),
+                       Entry.client_code.ilike(f'%{search}%'),
+                       Entry.bill_no.ilike(f'%{search}%'),
+                       Entry.nimbus_no.ilike(f'%{search}%')))
 
         summary_query = base_query.group_by(Entry.material).all()
         summary = {row.material: row.net for row in summary_query}
@@ -1469,12 +1998,12 @@ def unpaid_transactions_page():
     bill_no = request.args.get('bill_no')
     status = request.args.get('status', 'unpaid')
 
-    query = PendingBill.query
+    query = PendingBill.query.filter(PendingBill.is_void == False)
 
     if start_date:
         query = query.filter(PendingBill.created_at >= start_date)
     if end_date:
-        query = query.filter(PendingBill.created_at <= end_date)
+        query = query.filter(PendingBill.created_at <= f"{end_date} 23:59:59")
     if material:
         query = query.filter(PendingBill.reason.ilike(f'%{material}%'))
     if bill_no:
@@ -1484,6 +2013,9 @@ def unpaid_transactions_page():
         query = query.filter(PendingBill.is_paid == True)
     elif status == 'unpaid':
         query = query.filter(PendingBill.is_paid == False)
+    
+    # Hide 0-amount unpaid bills (Booking Deliveries)
+    query = query.filter(or_(PendingBill.amount > 0, PendingBill.is_paid == True))
     
     transactions = query.order_by(PendingBill.id.desc()).all()
     materials = Material.query.all()
@@ -1500,17 +2032,145 @@ def unpaid_transactions_page():
                            })
 
 
+@app.route('/financial_details')
+@login_required
+def financial_details():
+    type_filter = request.args.get('type', 'cash')
+    start_date = request.args.get('start_date')
+    end_date = request.args.get('end_date')
+    client_query = request.args.get('client', '').strip()
+    min_price = request.args.get('min_price', type=float)
+    max_price = request.args.get('max_price', type=float)
+    
+    if not start_date: start_date = date.today().strftime('%Y-%m-%d')
+    if not end_date: end_date = date.today().strftime('%Y-%m-%d')
+    
+    # Resolve client code to name if applicable
+    if client_query and (client_query.lower().startswith('tmpc-') or client_query[0].isdigit()):
+         c = Client.query.filter(Client.code.ilike(f'%{client_query}%')).first()
+         if c:
+             client_query = c.name
+
+    transactions = []
+    
+    if type_filter == 'cash':
+        # 1. Payments
+        q_pay = Payment.query.filter(func.date(Payment.date_posted) >= start_date, 
+                                   func.date(Payment.date_posted) <= end_date, Payment.is_void == False)
+        if client_query:
+            q_pay = q_pay.filter(Payment.client_name.ilike(f'%{client_query}%'))
+        if min_price is not None: q_pay = q_pay.filter(Payment.amount >= min_price)
+        if max_price is not None: q_pay = q_pay.filter(Payment.amount <= max_price)
+        
+        for p in q_pay.all():
+            transactions.append({
+                'date': p.date_posted,
+                'client': p.client_name,
+                'amount': p.amount,
+                'type': 'Payment',
+                'ref': p.manual_bill_no or f'PAY-{p.id}'
+            })
+            
+        # 2. Booking Advances
+        q_book = Booking.query.filter(func.date(Booking.date_posted) >= start_date,
+                                    func.date(Booking.date_posted) <= end_date,
+                                    Booking.paid_amount > 0, Booking.is_void == False)
+        if client_query:
+            q_book = q_book.filter(Booking.client_name.ilike(f'%{client_query}%'))
+        if min_price is not None: q_book = q_book.filter(Booking.paid_amount >= min_price)
+        if max_price is not None: q_book = q_book.filter(Booking.paid_amount <= max_price)
+        
+        for b in q_book.all():
+            transactions.append({
+                'date': b.date_posted,
+                'client': b.client_name,
+                'amount': b.paid_amount,
+                'type': 'Booking Advance',
+                'ref': b.manual_bill_no or f'BK-{b.id}'
+            })
+            
+        # 3. Direct Sale Cash
+        q_sale = DirectSale.query.filter(func.date(DirectSale.date_posted) >= start_date,
+                                       func.date(DirectSale.date_posted) <= end_date,
+                                       DirectSale.paid_amount > 0, DirectSale.is_void == False)
+        if client_query:
+            q_sale = q_sale.filter(DirectSale.client_name.ilike(f'%{client_query}%'))
+        if min_price is not None: q_sale = q_sale.filter(DirectSale.paid_amount >= min_price)
+        if max_price is not None: q_sale = q_sale.filter(DirectSale.paid_amount <= max_price)
+        
+        for s in q_sale.all():
+            transactions.append({
+                'date': s.date_posted,
+                'client': s.client_name,
+                'amount': s.paid_amount,
+                'type': 'Direct Sale',
+                'ref': s.manual_bill_no or s.auto_bill_no or f'DS-{s.id}'
+            })
+            
+    elif type_filter == 'credit':
+        # 1. Booking Credit
+        q_book = Booking.query.filter(func.date(Booking.date_posted) >= start_date,
+                                    func.date(Booking.date_posted) <= end_date,
+                                    (Booking.amount - Booking.paid_amount) > 0, Booking.is_void == False)
+        if client_query:
+            q_book = q_book.filter(Booking.client_name.ilike(f'%{client_query}%'))
+        
+        for b in q_book.all():
+            credit = b.amount - b.paid_amount
+            if min_price is not None and credit < min_price: continue
+            if max_price is not None and credit > max_price: continue
+            transactions.append({
+                'date': b.date_posted,
+                'client': b.client_name,
+                'amount': credit,
+                'type': 'Booking Credit',
+                'ref': b.manual_bill_no or f'BK-{b.id}'
+            })
+            
+        # 2. Direct Sale Credit
+        q_sale = DirectSale.query.filter(func.date(DirectSale.date_posted) >= start_date,
+                                       func.date(DirectSale.date_posted) <= end_date,
+                                       (DirectSale.amount - DirectSale.paid_amount) > 0, DirectSale.is_void == False)
+        if client_query:
+            q_sale = q_sale.filter(DirectSale.client_name.ilike(f'%{client_query}%'))
+            
+        for s in q_sale.all():
+            credit = s.amount - s.paid_amount
+            if min_price is not None and credit < min_price: continue
+            if max_price is not None and credit > max_price: continue
+            transactions.append({
+                'date': s.date_posted,
+                'client': s.client_name,
+                'amount': credit,
+                'type': 'Direct Sale Credit',
+                'ref': s.manual_bill_no or s.auto_bill_no or f'DS-{s.id}'
+            })
+
+    transactions.sort(key=lambda x: x['date'], reverse=True)
+    
+    return render_template('financial_details.html',
+                           transactions=transactions,
+                           type=type_filter,
+                           start_date=start_date,
+                           end_date=end_date,
+                           client=client_query,
+                           min_price=min_price,
+                           max_price=max_price)
+
+
 # ==================== MAIN ROUTES ====================
 
 @app.route('/')
 @login_required
 def index():
     today = date.today().strftime('%B %d, %Y')
+    today_date = date.today()
+    
     client_count = db.session.query(func.count(Client.id)).scalar() or 0
     stats_query = db.session.query(
         Entry.material,
         func.sum(case((Entry.type == 'IN', Entry.qty), else_=0)).label('total_in'),
-        func.sum(case((Entry.type == 'OUT', Entry.qty), else_=0)).label('total_out')
+        func.sum(case((Entry.type == 'OUT', Entry.qty), else_=0)).label('total_out') # Entry.is_void check needed? Yes.
     ).group_by(Entry.material).all()
     
     stats = sorted([{
@@ -1520,13 +2180,68 @@ def index():
         'stock': int((row.total_in or 0) - (row.total_out or 0))
     } for row in stats_query], key=lambda x: x['name'])
     
+    # Re-query stats with is_void=False
+    stats_query = db.session.query(
+        Entry.material,
+        func.sum(case((Entry.type == 'IN', Entry.qty), else_=0)).label('total_in'),
+        func.sum(case((Entry.type == 'OUT', Entry.qty), else_=0)).label('total_out')
+    ).filter(Entry.is_void == False).group_by(Entry.material).all()
+    
+    stats = sorted([{
+        'name': row.material,
+        'in': int(row.total_in or 0),
+        'out': int(row.total_out or 0),
+        'stock': int((row.total_in or 0) - (row.total_out or 0))
+    } for row in stats_query], key=lambda x: x['name'])
+
     total_stock = sum(s['stock'] for s in stats)
     
+    # Daily Cash Calculation
+    cash_payments = db.session.query(func.sum(Payment.amount)).filter(func.date(Payment.date_posted) == today_date, Payment.is_void == False).scalar() or 0
+    cash_bookings = db.session.query(func.sum(Booking.paid_amount)).filter(func.date(Booking.date_posted) == today_date, Booking.is_void == False).scalar() or 0
+    cash_sales = db.session.query(func.sum(DirectSale.paid_amount)).filter(func.date(DirectSale.date_posted) == today_date, DirectSale.is_void == False).scalar() or 0
+    daily_cash = cash_payments + cash_bookings + cash_sales
+    
+    # Daily Credit Calculation
+    credit_bookings = db.session.query(func.sum(Booking.amount - Booking.paid_amount)).filter(func.date(Booking.date_posted) == today_date, Booking.is_void == False).scalar() or 0
+    credit_sales = db.session.query(func.sum(DirectSale.amount - DirectSale.paid_amount)).filter(func.date(DirectSale.date_posted) == today_date, DirectSale.is_void == False).scalar() or 0
+    daily_credit = credit_bookings + credit_sales
+    
+    # Total Outstanding (Unpaid Bills)
+    total_outstanding = db.session.query(func.sum(PendingBill.amount)).filter(PendingBill.is_paid == False, PendingBill.is_void == False).scalar() or 0
+    
+    # Daily Sales Breakdown
+    sales_breakdown = {}
+    
+    # 1. Bookings
+    booking_total = db.session.query(func.sum(Booking.amount)).filter(func.date(Booking.date_posted) == today_date, Booking.is_void == False).scalar() or 0
+    if booking_total > 0:
+        sales_breakdown['Bookings'] = booking_total
+
+    # 2. Direct Sales
+    ds_query = db.session.query(DirectSale.category, func.sum(DirectSale.amount))\
+        .filter(func.date(DirectSale.date_posted) == today_date, DirectSale.is_void == False)\
+        .group_by(DirectSale.category).all()
+        
+    for cat, amt in ds_query:
+        if amt > 0:
+            cat_name = cat if cat else 'Direct Sale'
+            if cat_name == 'Credit Customer': cat_name = 'Credit Sales'
+            if cat_name == 'Cash': cat_name = 'Cash Sales'
+            sales_breakdown[cat_name] = sales_breakdown.get(cat_name, 0) + amt
+            
+    sales_breakdown_list = [{'category': k, 'amount': v} for k, v in sales_breakdown.items()]
+    sales_breakdown_list.sort(key=lambda x: x['amount'], reverse=True)
+
     return render_template('index.html',
                            today_date=today,
                            total_stock=int(total_stock),
                            client_count=client_count,
-                           stats=stats)
+                           stats=stats,
+                           daily_cash=daily_cash,
+                           daily_credit=daily_credit,
+                           total_outstanding=total_outstanding,
+                           sales_breakdown=sales_breakdown_list)
 
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -1642,6 +2357,13 @@ def edit_client(id):
                 'client': new_name
             })
             Entry.query.filter_by(client=old_name).update({'client': new_name})
+            
+            # Propagate name change to all related tables to prevent broken links
+            Booking.query.filter_by(client_name=old_name).update({'client_name': new_name})
+            DirectSale.query.filter_by(client_name=old_name).update({'client_name': new_name})
+            Payment.query.filter_by(client_name=old_name).update({'client_name': new_name})
+            Invoice.query.filter_by(client_name=old_name).update({'client_name': new_name})
+            Invoice.query.filter_by(client_code=old_code).update({'client_code': new_code})
 
         c.name = new_name
         c.code = new_code
@@ -1814,19 +2536,26 @@ def pending_bills():
         'bill_from': request.args.get('bill_from', '').strip(),
         'bill_to': request.args.get('bill_to', '').strip(),
         'category': category,
-        'is_cash': request.args.get('is_cash', '').strip()
+        'is_cash': request.args.get('is_cash', '').strip(),
+        'is_manual': request.args.get('is_manual', '').strip()
     }
     
     query = PendingBill.query
     
-    if filters['client_code']:
+    if filters['client_code']: # Add is_void filter
         query = query.filter(PendingBill.client_code == filters['client_code'])
     if filters['bill_no']:
         query = query.filter(PendingBill.bill_no.ilike(f"%{filters['bill_no']}%"))
     if filters['is_cash'] != '':
         query = query.filter(PendingBill.is_cash == (filters['is_cash'] == '1'))
+    if filters['is_manual'] != '':
+        query = query.filter(PendingBill.is_manual == (filters['is_manual'] == '1'))
+        
+    query = query.filter(PendingBill.is_void == False)
 
-    if category:
+    if category == 'Unbilled Cash' or category == 'Cash':
+        query = query.filter(PendingBill.is_cash == True)
+    elif category:
         query = query.join(Client, PendingBill.client_code == Client.code).filter(Client.category == category)
 
     pagination = query.order_by(PendingBill.id.desc()).paginate(page=page, per_page=15)
@@ -2104,7 +2833,10 @@ def check_bill_api(bill_no):
 @app.route('/settings')
 @login_required
 def settings():
-    return render_template('settings.html', users=User.query.all())
+    settings_obj = Settings.query.first()
+    if not settings_obj:
+        settings_obj = Settings()
+    return render_template('settings.html', users=User.query.all(), settings=settings_obj)
 
 
 @app.route('/add_user', methods=['POST'])
@@ -2174,6 +2906,26 @@ def change_password():
     return redirect(url_for('settings'))
 
 
+@app.route('/update_settings', methods=['POST'])
+@login_required
+def update_settings():
+    if current_user.role != 'admin':
+        flash('Unauthorized', 'danger')
+        return redirect(url_for('settings'))
+    
+    settings_obj = Settings.query.first()
+    if not settings_obj:
+        settings_obj = Settings()
+        db.session.add(settings_obj)
+        
+    settings_obj.company_name = request.form.get('company_name', settings_obj.company_name or 'Ahmed Cement')
+    settings_obj.currency = request.form.get('currency', settings_obj.currency or 'PKR')
+    settings_obj.allow_global_negative_stock = 'allow_global_negative_stock' in request.form
+    
+    db.session.commit()
+    flash('Settings updated successfully', 'success')
+    return redirect(url_for('settings'))
+
 @app.route('/delete_selected_data', methods=['POST'])
 @login_required
 def delete_selected_data():
@@ -2233,10 +2985,102 @@ def delete_all_data():
     return redirect(url_for('settings'))
 
 
-@app.route('/import_jumble')
+@app.route('/generate_dummy_data')
 @login_required
-def import_jumble_view():
-    return render_template('import_jumble.html')
+def generate_dummy_data():
+    if current_user.role != 'admin':
+        flash('Unauthorized', 'danger')
+        return redirect(url_for('index'))
+    
+    import random
+    
+    # 1. Ensure 20 Materials
+    for i in range(1, 21):
+        name = f"Cement Brand {i}"
+        if not Material.query.filter_by(name=name).first():
+            db.session.add(Material(name=name, code=generate_material_code()))
+    db.session.commit()
+    materials = Material.query.all()
+    
+    # 2. Ensure 500 Clients
+    current_count = Client.query.count()
+    cats = ['General', 'Credit Customer', 'Booking Customer', 'Walking-Customer']
+    if current_count < 500:
+        for i in range(current_count, 500):
+            db.session.add(Client(
+                name=f"Client {i+1}",
+                code=generate_client_code(),
+                category=random.choice(cats),
+                phone=f"0300-{random.randint(1000000, 9999999)}",
+                is_active=True
+            ))
+        db.session.commit()
+    clients = Client.query.all()
+    
+    # 3. Generate Bookings (for ~100 random clients)
+    for _ in range(100):
+        client = random.choice(clients)
+        bill_no = f"BK-AUTO-{random.randint(10000,99999)}"
+        
+        # 5-15 items per booking
+        items_count = random.randint(5, 15)
+        booking_mats = random.choices(materials, k=items_count)
+        
+        total_amt = 0
+        b_items = []
+        
+        for m in booking_mats:
+            qty = random.randint(50, 500)
+            rate = random.randint(900, 1200)
+            total_amt += qty * rate
+            b_items.append((m, qty, rate))
+            
+        paid = random.choice([0, total_amt * 0.5, total_amt])
+        
+        bk = Booking(client_name=client.name, amount=total_amt, paid_amount=paid, manual_bill_no=bill_no, date_posted=datetime.now())
+        db.session.add(bk)
+        db.session.flush()
+        
+        for m, q, r in b_items:
+            db.session.add(BookingItem(booking_id=bk.id, material_name=m.name, qty=q, price_at_time=r))
+            
+        if total_amt > paid:
+            db.session.add(PendingBill(client_code=client.code, client_name=client.name, bill_no=bill_no, amount=total_amt-paid, reason="Auto Booking", created_at=datetime.now().strftime('%Y-%m-%d %H:%M'), created_by='admin'))
+            
+        # Random Dispatch (Partial)
+        if random.choice([True, False]):
+            for m, q, r in b_items:
+                disp_q = int(q * random.uniform(0.1, 1.0))
+                if disp_q > 0:
+                    db.session.add(Entry(date=date.today().strftime('%Y-%m-%d'), time="12:00:00", type='OUT', material=m.name, client=client.name, client_code=client.code, qty=disp_q, bill_no=bill_no, nimbus_no="Auto Dispatch", client_category="Booking Delivery", created_by='admin'))
+                    m.total = (m.total or 0) - disp_q
+
+    # 4. Direct Sales (Random Cash/Credit/Unbilled)
+    for _ in range(50):
+        sale_type = random.choice(['Cash', 'Credit'])
+        client = random.choice(clients)
+        bill_no = f"DS-AUTO-{random.randint(10000,99999)}"
+        
+        m = random.choice(materials)
+        qty = random.randint(10, 100)
+        rate = random.randint(900, 1200)
+        amt = qty * rate
+        paid = amt if sale_type == 'Cash' else 0
+        
+        ds = DirectSale(client_name=client.name, amount=amt, paid_amount=paid, manual_bill_no=bill_no, category=sale_type, date_posted=datetime.now())
+        db.session.add(ds)
+        db.session.flush()
+        db.session.add(DirectSaleItem(sale_id=ds.id, product_name=m.name, qty=qty, price_at_time=rate))
+        
+        db.session.add(Entry(date=date.today().strftime('%Y-%m-%d'), time="12:00:00", type='OUT', material=m.name, client=client.name, client_code=client.code, qty=qty, bill_no=bill_no, nimbus_no="Direct Sale", client_category=sale_type, created_by='admin'))
+        m.total = (m.total or 0) - qty
+        
+        if amt > paid:
+            db.session.add(PendingBill(client_code=client.code, client_name=client.name, bill_no=bill_no, amount=amt-paid, reason="Auto Sale", created_at=datetime.now().strftime('%Y-%m-%d %H:%M'), created_by='admin'))
+
+    db.session.commit()
+    flash('Generated 500+ Clients, 20 Materials, Bookings & Sales!', 'success')
+    return redirect(url_for('settings'))
 
 
 # ==================== GRN ROUTES ====================
@@ -2306,78 +3150,6 @@ def grn():
     grns = GRN.query.order_by(GRN.date_posted.desc()).all()
     materials = Material.query.order_by(Material.name.asc()).all()
     return render_template('grn.html', grns=grns, materials=materials)
-
-
-# ==================== DELIVERIES ROUTES ====================
-
-@app.route('/deliveries', methods=['GET', 'POST'])
-@login_required
-def deliveries():
-    if request.method == 'POST':
-        action = request.form.get('action')
-        
-        if action == 'add':
-            client_name = request.form.get('client_name', '').strip()
-            manual_bill = request.form.get('manual_bill_no', '').strip()
-            auto_bill = get_next_bill_no()
-            photo = save_photo(request.files.get('photo'))
-            
-            new_delivery = Delivery(client_name=client_name, manual_bill_no=manual_bill,
-                                   auto_bill_no=auto_bill, photo_path=photo)
-            db.session.add(new_delivery)
-            db.session.flush()
-            
-            products = request.form.getlist('product[]')
-            qtys = request.form.getlist('qty[]')
-            
-            for product, qty in zip(products, qtys):
-                if product and qty:
-                    qty_val = float(qty)
-                    item = DeliveryItem(delivery_id=new_delivery.id, product=product, qty=qty_val)
-                    db.session.add(item)
-                    
-                    mat = Material.query.filter_by(name=product).first()
-                    if mat:
-                        mat.total -= qty_val
-                    
-                    client = Client.query.filter_by(name=client_name).first()
-                    client_code = client.code if client else ''
-                    
-                    entry = Entry(
-                        date=datetime.now().strftime('%Y-%m-%d'),
-                        time=datetime.now().strftime('%H:%M:%S'),
-                        type='OUT',
-                        material=product,
-                        client=client_name,
-                        client_code=client_code,
-                        qty=qty_val,
-                        bill_no=manual_bill or '',
-                        auto_bill_no=auto_bill,
-                        created_by=current_user.username
-                    )
-                    db.session.add(entry)
-            
-            db.session.commit()
-            flash('Delivery added successfully!', 'success')
-            
-        elif action == 'delete':
-            delivery_id = request.form.get('id')
-            delivery = Delivery.query.get(delivery_id)
-            if delivery:
-                for item in delivery.items:
-                    mat = Material.query.filter_by(name=item.product).first()
-                    if mat:
-                        mat.total += item.qty
-                db.session.delete(delivery)
-                db.session.commit()
-                flash('Delivery deleted successfully!', 'success')
-        
-        return redirect(url_for('deliveries'))
-    
-    all_deliveries = Delivery.query.order_by(Delivery.date_posted.desc()).all()
-    materials = Material.query.order_by(Material.name.asc()).all()
-    clients = Client.query.filter_by(is_active=True).order_by(Client.name.asc()).all()
-    return render_template('deliveries.html', deliveries=all_deliveries, materials=materials, clients=clients)
 
 
 # ==================== BLUEPRINTS ====================

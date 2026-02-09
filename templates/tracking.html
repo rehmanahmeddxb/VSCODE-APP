@@ -46,6 +46,7 @@
 
 <div class="d-flex flex-wrap justify-content-between align-items-center mb-4 gap-2">
     <h2 class="fw-bold text-warning mb-0">History & Search</h2>
+    <a href="/" class="btn btn-outline-light btn-sm fw-bold"><i class="bi bi-arrow-left me-1"></i> Back</a>
 </div>
 
 <div class="card border-0 shadow-sm mb-4" style="background: #1e293b; border: 2px solid #475569 !important; border-radius: 15px;">
@@ -103,6 +104,9 @@
                 <label class="small fw-bold text-white-50">Category</label>
                 <select name="category" class="form-select bg-dark text-white border-secondary">
                     <option value="">All Categories</option>
+                    <option value="Cash" {% if category_filter == 'Cash' %}selected{% endif %}>Cash (Unbilled)</option>
+                    <option value="Credit Customer" {% if category_filter == 'Credit Customer' %}selected{% endif %}>Credit Sales</option>
+                    <option value="Booking Customer" {% if category_filter == 'Booking Customer' %}selected{% endif %}>Booking Sales</option>
                     <option value="General" {% if category_filter == 'General' %}selected{% endif %}>General</option>
                     <option value="Walking-Customer" {% if category_filter == 'Walking-Customer' %}selected{% endif %}>Walking-Customer</option>
                     <option value="Misc" {% if category_filter == 'Misc' %}selected{% endif %}>Misc</option>
@@ -161,18 +165,22 @@
             </thead>
             <tbody>
                 {% for e in entries %}
-                <tr style="border-bottom: 1px solid #334155;">
+                <tr style="border-bottom: 1px solid #334155; {% if e.is_void %}opacity: 0.5; text-decoration: line-through;{% endif %}">
                     <td class="ps-3 fw-bold text-warning">{{ e.date }}</td>
                     <td class="text-white-50">{{ e.time }}</td>
                     <td>
-                        {% if e.type == 'IN' %}
-                        <span class="badge bg-success px-3 py-2 rounded-pill fw-bold">IN</span>
-                        {% elif e.type == 'OUT' %}
-                        <span class="badge bg-info text-dark px-3 py-2 rounded-pill fw-bold">OUT</span>
-                        {% elif e.type == 'BOOKING' %}
-                        <span class="badge bg-warning text-dark px-3 py-2 rounded-pill fw-bold">BOOKING</span>
+                        {% if e.is_void %}
+                        <span class="badge bg-danger">VOID</span>
                         {% else %}
+                            {% if e.type == 'IN' %}
+                        <span class="badge bg-success px-3 py-2 rounded-pill fw-bold">IN</span>
+                            {% elif e.type == 'OUT' %}
+                        <span class="badge bg-info text-dark px-3 py-2 rounded-pill fw-bold">OUT</span>
+                            {% elif e.type == 'BOOKING' %}
+                        <span class="badge bg-warning text-dark px-3 py-2 rounded-pill fw-bold">BOOKING</span>
+                            {% else %}
                         <span class="badge bg-secondary px-3 py-2 rounded-pill fw-bold">{{ e.type }}</span>
+                            {% endif %}
                         {% endif %}
                     </td>
                     <td class="fw-bold text-white">{{ e.client or '---' }}</td>
@@ -190,7 +198,11 @@
                     </td>
                     <td>
                         {% if e.bill_no and e.bill_no != '---' %}
-                        <a href="/pending_bills?bill_no={{ e.bill_no }}" class="badge bg-dark border border-secondary text-warning text-decoration-none">{{ e.bill_no }}</a>
+                            {% if e.bill_no.startswith('UNBILLED') %}
+                            <span class="badge bg-danger-subtle text-danger border border-danger border-opacity-25" title="{{ e.bill_no }}">Unbilled</span>
+                            {% else %}
+                            <a href="{{ url_for('view_bill', bill_no=e.bill_no|replace('#', '%23')) }}" class="badge bg-dark border border-secondary text-warning text-decoration-none">{{ e.bill_no }}</a>
+                            {% endif %}
                         {% else %}
                         <span class="text-white-50 small text-muted">(empty)</span>
                         {% endif %}
@@ -199,18 +211,26 @@
                     <td class="text-info small fw-bold">{{ e.created_by or 'System' }}</td>
                     <td class="text-end pe-3 action-cell">
                         {% set today_str = now_date %}
-                        {% if e.type == 'BOOKING' %}
+                        {% if not e.is_void %}
+                            {% if e.type == 'BOOKING' %}
                         <a href="/bookings?search={{ e.bill_no or '' }}" class="btn btn-outline-info action-btn me-1">
                             <i class="bi bi-journal-bookmark me-1"></i> View Booking
                         </a>
-                        {% else %}
-                            {% if current_user.role == 'admin' or e.date == today_str %}
+                            {% else %}
+                                {% if current_user.role == 'admin' or e.date == today_str %}
                             <button class="btn btn-warning action-btn text-dark me-1" data-bs-toggle="modal" data-bs-target="#editTrack{{ e.id }}">
                                 <i class="bi bi-pencil-fill"></i> Edit
                             </button>
-                            {% else %}
+                                {% else %}
                             <span class="badge bg-secondary opacity-50"><i class="bi bi-lock"></i> Locked</span>
+                                {% endif %}
+                                {% if current_user.role == 'admin' %}
+                                <button class="btn btn-outline-danger btn-sm rounded-pill ms-1" onclick="if(confirm('VOID this transaction?')) { document.getElementById('voidTrackForm{{ e.id }}').submit(); }">Void</button>
+                                <form id="voidTrackForm{{ e.id }}" action="/void_transaction/Entry/{{ e.id }}" method="POST" style="display:none;"></form>
+                                {% endif %}
                             {% endif %}
+                        {% else %}
+                        <span class="badge bg-danger">VOIDED</span>
                         {% endif %}
                     </td>
                 </tr>

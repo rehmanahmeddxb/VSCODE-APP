@@ -2,6 +2,7 @@
 {% block content %}
 <div class="page-header">
     <h2><i class="bi bi-box-arrow-in-down"></i> GRN - Goods Receipt Note</h2>
+    <a href="/" class="btn btn-outline-light btn-sm fw-bold ms-2"><i class="bi bi-arrow-left me-1"></i> Back</a>
     <button class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#addGRNModal">
         <i class="bi bi-plus-lg"></i> Add GRN
     </button>
@@ -124,7 +125,8 @@
                     </button>
                 </div>
                 <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="reset" class="btn btn-outline-secondary">Reset</button>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                     <button type="submit" class="btn btn-warning">Add GRN</button>
                 </div>
             </form>

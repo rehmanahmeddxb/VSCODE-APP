@@ -3,6 +3,7 @@
 <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-4 gap-3">
     <h2 class="fw-bold text-warning mb-0"><i class="bi bi-calendar-check me-2"></i>Bookings</h2>
     <div class="d-flex gap-2 flex-wrap">
+        <a href="/" class="btn btn-outline-light btn-sm fw-bold"><i class="bi bi-arrow-left me-1"></i> Back</a>
         <button class="btn btn-warning btn-sm text-dark fw-bold" data-bs-toggle="modal" data-bs-target="#addBookingModal">
             <i class="bi bi-plus-lg"></i> Add Booking
         </button>
@@ -137,8 +138,9 @@
                     <input type="file" name="photo" class="form-control bg-dark text-white border-secondary" accept="image/*">
                 </div>
             </div>
-            <div class="modal-footer border-0">
-                <button type="submit" class="btn btn-warning text-dark fw-bold w-100 py-2 rounded-pill">Save Booking</button>
+            <div class="modal-footer border-0 d-flex gap-2">
+                <button type="reset" class="btn btn-outline-secondary flex-grow-1 py-2 rounded-pill fw-bold">Reset</button>
+                <button type="submit" class="btn btn-warning text-dark fw-bold flex-grow-1 py-2 rounded-pill">Save Booking</button>
             </div>
         </form>
     </div>
